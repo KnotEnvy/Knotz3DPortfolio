@@ -116,7 +116,7 @@ import {
   
   const experiences = [
     {
-      title: "Owner/Operator",
+      title: "Co-Owner/Operator",
       company_name: "Action Pools, and Spa, LLC.",
       icon: pool,
       iconBg: "#E6DEDD",
@@ -215,7 +215,7 @@ import {
         },
       ],
       image: shirt,
-      source_code_link: "https://github.com/KnotEnvy/T-shirt-3js",
+      source_code_link: "https://knotz-logosnshirt-designs.onrender.com/",
     },
     {
       name: "KnotzGameOfGlory",
