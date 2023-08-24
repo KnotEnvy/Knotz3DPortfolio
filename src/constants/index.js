@@ -23,6 +23,8 @@ import {
     glory,
     portfolio,
     threejs,
+    bird,
+    invaders,
   } from "../assets";
   
   export const navLinks = [
@@ -205,10 +207,10 @@ import {
           name: "react",
           color: "blue-text-gradient",
         },
-        // {
-        //   name: "mongodb",
-        //   color: "green-text-gradient",
-        // },
+        {
+          name: "mongodb",
+          color: "green-text-gradient",
+        },
         {
           name: "tailwind",
           color: "pink-text-gradient",
@@ -258,6 +260,48 @@ import {
       ],
       image: portfolio,
       source_code_link: "https://github.com/KnotEnvy?tab=repositories",
+    },
+    {
+      name: "Knotz Raven Mayhem",
+      description:
+        "Knotz Raven Mayhem is a canvas-based interactive game designed with JavaScript. In the game, you play as an unseen force with the power to create explosions and destroy ravens that fly across your screen. The objective is to score as many points as possible by clicking on ravens, which will detonate on impact and add to your score.",
+      tags: [
+        {
+          name: "javascript",
+          color: "blue-text-gradient",
+        },
+        {
+          name: "css",
+          color: "green-text-gradient",
+        },
+        {
+          name: "expressJS",
+          color: "pink-text-gradient",
+        },
+      ],
+      image: bird,
+      source_code_link: "https://knotenvy.github.io/Knotz-Raven-Mayhem",
+    },
+    {
+      name: "Knotz InvadeSpace",
+      description:
+        "KnotzInvadeSpace is a fun and challenging 2D space-invaders style arcade game where the player has to destroy oncoming waves of alien beetlemorphs. Each wave of enemies is progressively harder to destroy, requiring skill and quick reflexes to navigate through the game. This project uses HTML5 Canvas for rendering and vanilla JavaScript for game logic.",
+      tags: [
+        {
+          name: "javascript",
+          color: "blue-text-gradient",
+        },
+        {
+          name: "css",
+          color: "green-text-gradient",
+        },
+        {
+          name: "HTML",
+          color: "pink-text-gradient",
+        },
+      ],
+      image: invaders,
+      source_code_link: "https://knotenvy.github.io/KnotzInvadeSpace",
     },
   ];
   
