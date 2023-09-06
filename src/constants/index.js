@@ -238,7 +238,7 @@ import {
         },
       ],
       image: glory,
-      source_code_link: "https://github.com/KnotEnvy/KnotzTheGameOfGlory",
+      source_code_link: "https://knotenvy.github.io/KnotzTheGameOfGlory/",
     },
     {
       name: "3D Portfolio",
