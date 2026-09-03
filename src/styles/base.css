@@ -1,0 +1,165 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+}
+
+/*
+ * Game mode pins the viewport. Brief mode releases it so the *document*
+ * scrolls — which keeps anchors, scroll restoration and mobile URL-bar
+ * collapse working, none of which survive a body-level scroll container.
+ */
+html.brief-mode,
+html.brief-mode body {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  z-index: 0;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+#ui > * {
+  pointer-events: auto;
+}
+
+/*
+ * The HUD and the toast stack are full-viewport overlays. Without this they win
+ * on specificity against the rule above and swallow every pointer event before
+ * it reaches the canvas — which silently kills drag-to-fly on touch devices.
+ */
+#ui .hud,
+#ui .toasts {
+  pointer-events: none;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--signal);
+  color: #04121a;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.noscript {
+  position: relative;
+  z-index: 10;
+  max-width: 42rem;
+  margin: 12vh auto;
+  padding: 2rem;
+  font-family: var(--font-body);
+}
+
+/* Thin, dark scrollbars everywhere the content scrolls. */
+.scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 200, 255, 0.28) transparent;
+}
+.scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: rgba(140, 200, 255, 0.24);
+  border-radius: 8px;
+}
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Keyboard escape hatch: the first tab stop on the page. */
+.skip {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -120%);
+  z-index: 60;
+  padding: 0.7rem 1.2rem;
+  background: var(--signal);
+  color: #04121a;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  transition: transform 0.2s var(--ease);
+}
+
+.skip:focus {
+  transform: translate(-50%, 0);
+  text-decoration: none;
+}
