@@ -1,15 +1,107 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/assets/jay-logo3-36b4ee0b.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Knotz Dev Portfolio</title>
-    <script type="module" crossorigin src="/assets/index-c8caf796.js"></script>
-    <link rel="stylesheet" href="/assets/index-10293c17.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#05060b" />
+
+    <title>Jay W. Snyder — AI Engineer, Business Builder, Game Developer</title>
+    <meta
+      name="description"
+      content="Jay W. Snyder builds AI systems that make real businesses more money. Owner of Dazzle Divas Cleaning, Director of Sales, Marketing & Technology at SkyRun Daytona. Explore an interactive Three.js portfolio — or read the written brief."
+    />
+    <link rel="canonical" href="https://knotenvy.github.io/Knotz3DPortfolio/" />
+    <meta name="author" content="Jay W. Snyder" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Jay W. Snyder — SIGNAL" />
+    <meta
+      property="og:description"
+      content="An interactive, playable portfolio. AI engineering, business operations and game development from Daytona Beach, Florida."
+    />
+    <meta property="og:url" content="https://knotenvy.github.io/Knotz3DPortfolio/" />
+    <meta property="og:image" content="https://knotenvy.github.io/Knotz3DPortfolio/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Jay W. Snyder — AI Engineer, Business Builder, Game Developer" />
+    <meta property="og:site_name" content="Jay W. Snyder — SIGNAL" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Jay W. Snyder — SIGNAL" />
+    <meta
+      name="twitter:description"
+      content="An interactive, playable portfolio. AI engineering, business operations and game development from Daytona Beach, Florida."
+    />
+    <meta name="twitter:image" content="https://knotenvy.github.io/Knotz3DPortfolio/og.jpg" />
+
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070a12'/%3E%3Cpath d='M8 22 L16 8 L24 22 Z' fill='none' stroke='%234de1c1' stroke-width='2.4' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='17' r='2.4' fill='%23ff3d81'/%3E%3C/svg%3E" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "Jay W. Snyder",
+        "alternateName": "KnotEnvy",
+        "jobTitle": "AI Engineer, Business Builder, Game Developer",
+        "email": "mailto:jwsnyder@gmail.com",
+        "telephone": "+1-386-301-5775",
+        "url": "https://knotenvy.github.io/Knotz3DPortfolio/",
+        "sameAs": ["https://github.com/KnotEnvy", "https://www.dazzledivascleaning.com/"],
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Daytona Beach",
+          "addressRegion": "FL",
+          "addressCountry": "US"
+        },
+        "worksFor": [
+          { "@type": "Organization", "name": "SkyRun Daytona Vacation Rentals" },
+          { "@type": "Organization", "name": "Dazzle Divas Cleaning", "url": "https://www.dazzledivascleaning.com/" },
+          { "@type": "Organization", "name": "Hacktivate Nation" }
+        ],
+        "alumniOf": { "@type": "CollegeOrUniversity", "name": "University of Central Florida" },
+        "knowsAbout": [
+          "Artificial Intelligence Engineering",
+          "Large Language Model Applications",
+          "Retrieval Augmented Generation",
+          "Three.js and WebGL",
+          "Game Development",
+          "Business Operations",
+          "Vacation Rental Management"
+        ]
+      }
+    </script>
+    <script type="module" crossorigin src="./assets/index-Fu5wcapF.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/three-BCodmloH.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-BcSwIYOl.css">
   </head>
   <body>
-    <div id="root"></div>
-    
+    <canvas id="stage" aria-hidden="true"></canvas>
+
+    <a class="skip" href="#brief">Skip the game — read the written brief</a>
+
+    <div id="ui"></div>
+
+    <noscript>
+      <div class="noscript">
+        <h1>Jay W. Snyder</h1>
+        <p>
+          AI Engineer · Business Builder · Game Developer — Daytona Beach, Florida. Owner of Dazzle Divas Cleaning and
+          Director of Sales, Marketing &amp; Technology at SkyRun Daytona Vacation Rentals.
+        </p>
+        <p>
+          This portfolio is an interactive WebGL experience and needs JavaScript. Reach me directly at
+          <a href="mailto:jwsnyder@gmail.com">jwsnyder@gmail.com</a> or
+          <a href="tel:+13863015775">(386) 301-5775</a>, or browse the code at
+          <a href="https://github.com/KnotEnvy">github.com/KnotEnvy</a>.
+        </p>
+      </div>
+    </noscript>
+
   </body>
 </html>
