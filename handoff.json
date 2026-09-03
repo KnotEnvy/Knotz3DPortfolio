@@ -25,10 +25,10 @@
   "status": {
     "phase": "live and verified on both hosts",
     "mainBranch": "main",
-    "mainHead": "PENDING — see git log; updated after this commit",
     "featureBranch": "claude/gamified-3d-portfolio-r7vfyi",
     "featureBranchMerged": true,
-    "featureBranchSafeToDelete": true
+    "featureBranchSafeToDelete": true,
+    "howToCheckDeployIsCurrent": "Compare the hashed bundle name in the <script> tag of https://knotz3d-portfolio.vercel.app/ against `npm run build` output locally. If they match, production is serving current main. Repeat for the GitHub Pages mirror."
   },
   "deployment": {
     "intendedHost": "Vercel",
