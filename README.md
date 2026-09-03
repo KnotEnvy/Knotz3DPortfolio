@@ -123,14 +123,17 @@ a sector's `cards` block. The brief picks it up automatically.
 
 `base` is `'./'`, so the build works from any path.
 
-- **Vercel (primary):** `vercel.json` pins the framework, `npm ci`, `npm run build`
-  and `dist/`, so the deploy does not depend on dashboard settings left over from
-  the previous app. Node is pinned to 22.x via `engines`.
-- **GitHub Pages:** `npm run deploy` publishes `dist/` to the `gh-pages` branch.
+- **Vercel — production:** <https://knotz3d-portfolio.vercel.app/>. Redeploys
+  automatically on push to `main`. `vercel.json` pins the framework, `npm ci`,
+  `npm run build` and `dist/`, so the deploy does not depend on dashboard
+  settings left over from the previous app. Node is pinned to 22.x via `engines`.
+- **GitHub Pages — mirror:** <https://knotenvy.github.io/Knotz3DPortfolio/>.
+  Does *not* update automatically; run `npm run deploy` after any change to
+  `main`, or it will serve a stale résumé from an indexed URL.
 
-Whenever the primary host changes, update the absolute `og:image`, `og:url` and
-`canonical` URLs in `index.html` — social scrapers need absolute paths — and the
-`seo` block in `handoff.json`.
+The absolute `og:image`, `og:url`, `canonical` and JSON-LD `url` in `index.html`
+all point at the Vercel URL — social scrapers need absolute paths. If the site
+moves to a custom domain, update those and the `seo` block in `handoff.json`.
 
 ## Handoff
 

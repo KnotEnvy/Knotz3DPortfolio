@@ -255,6 +255,7 @@ export const sectors: SectorDef[] = [
       { t: 'cta', label: `Email ${profile.email}`, href: `mailto:${profile.email}?subject=AI%20project%20enquiry`, kind: 'primary' },
       { t: 'cta', label: `Call ${profile.phone}`, href: 'tel:+13863015775', kind: 'ghost' },
       { t: 'cta', label: 'GitHub — KnotEnvy', href: profile.github, kind: 'ghost' },
+      { t: 'cta', label: 'LinkedIn', href: profile.linkedin, kind: 'ghost' },
     ],
     bonus: [
       {

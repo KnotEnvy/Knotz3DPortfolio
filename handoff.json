@@ -23,24 +23,17 @@
     ]
   },
   "status": {
-    "phase": "merged to main; GitHub Pages live and verified; Vercel deploy unverified",
+    "phase": "live and verified on both hosts",
     "mainBranch": "main",
-    "mainHead": "a0ad14edc9f99d6986f74ec2793d4a6c08821400",
+    "mainHead": "PENDING — see git log; updated after this commit",
     "featureBranch": "claude/gamified-3d-portfolio-r7vfyi",
     "featureBranchMerged": true,
     "featureBranchSafeToDelete": true
   },
   "deployment": {
     "intendedHost": "Vercel",
-    "productionUrl": null,
-    "productionUrlNote": "NOT YET RECORDED. Confirmed to be a *.vercel.app hostname, but the exact string has not been supplied and could not be discovered: the Vercel API is unavailable to this session, GitHub's deployments and commit-status endpoints are not enabled for the installed GitHub App, and every guessed hostname returned DEPLOYMENT_NOT_FOUND or belonged to an unrelated project. Fill this in from the Vercel dashboard, then decide which host is canonical and update the og:url / og:image / canonical tags in index.html and `seo.canonicalUrl` here to match.",
-    "verified": false,
-    "verificationBlockers": [
-      "No Vercel API token available in the session.",
-      "GitHub deployments and commit-status API endpoints are not enabled for this session's GitHub App installation.",
-      "Guessed *.vercel.app hostnames all returned DEPLOYMENT_NOT_FOUND or belonged to unrelated projects.",
-      "Chromium's TLS tunnel to external hosts is reset by the sandbox relay, so live sites can only be verified via curl plus a byte-identical local mirror."
-    ],
+    "productionUrl": "https://knotz3d-portfolio.vercel.app/",
+    "verified": true,
     "config": {
       "file": "vercel.json",
       "framework": "vite",
@@ -61,9 +54,12 @@
         "branch": "gh-pages",
         "verified": true,
         "verificationMethod": "All five deployed artifacts fetched from the live origin returned 200 with correct content types, and their SHA-256 hashes match the local `npm run build` output byte for byte. Those live bytes were then executed in headless Chromium: engine boots, ORIGIN dossier opens on arrival, terminal responds, brief mode toggles and scrolls. The sandbox relay resets Chromium's TLS tunnel to github.io, so the browser pass ran against a byte-identical local mirror of the live files rather than the origin directly.",
-        "knownNonIssue": "Google Fonts is blocked in the build sandbox, so verification runs show one failed request for fonts.googleapis.com. Real visitors load it normally; the design falls back to system stacks if it ever fails."
+        "knownNonIssue": "Google Fonts is blocked in the build sandbox, so verification runs show one failed request for fonts.googleapis.com. Real visitors load it normally; the design falls back to system stacks if it ever fails.",
+        "role": "Mirror, not canonical. Serves identical bytes; index.html points canonical at the Vercel URL, which is exactly what canonical is for. Republish with `npm run deploy` whenever main changes, or retire it — nothing depends on it."
       }
-    }
+    },
+    "verificationMethod": "All five deployed artifacts fetched from the live Vercel origin hash-match the local `npm run build` output byte for byte. Response headers confirm vercel.json is in effect: hashed assets return `cache-control: public, max-age=31536000, immutable` and `x-content-type-options: nosniff`, neither of which Vercel adds by default. The HTML served by Vercel and by GitHub Pages is byte-identical.",
+    "browserVerification": "The deployed bundle was executed in headless Chromium: engine boots, ORIGIN dossier opens on arrival, terminal responds, brief mode toggles and scrolls. The sandbox relay resets Chromium's TLS tunnel to external hosts, so the browser pass ran against a byte-identical local mirror of the live files rather than the origin directly."
   },
   "stack": {
     "runtime": "Browser, no server",
@@ -185,7 +181,15 @@
       "Knotz-Raven-Mayhem",
       "dazzle-divas-cleaning",
       "KnotzGPT-Plus"
-    ]
+    ],
+    "verifiedByOwner": {
+      "date": "2026-09-03",
+      "confirmed": [
+        "LinkedIn URL https://www.linkedin.com/in/jay-snyder-3b1a9b1b1/ is correct.",
+        "Dazzle Divas Cleaning start year 2018 is correct.",
+        "SkyRun Daytona start date is August 2026."
+      ]
+    }
   },
   "accessibility": {
     "briefMode": "Every word in the 3D world also exists as a semantic, keyboard-navigable HTML document. Toggle with the toolbar button, the `B` key, the terminal `brief` command, or the skip link.",
@@ -199,10 +203,10 @@
     "note": "The brief lives in normal document flow as a direct child of <body>, NOT inside the fixed #ui overlay. Moving it back inside #ui breaks document scrolling and in-page anchors."
   },
   "seo": {
-    "canonicalUrl": "https://knotenvy.github.io/Knotz3DPortfolio/",
-    "canonicalUrlNeedsUpdate": true,
-    "canonicalUrlNote": "canonical, og:url and og:image all point at the GitHub Pages URL, which is live and serving the current build, so the tags are valid as they stand. If Vercel becomes the primary host, repoint all three at the Vercel domain and leave GitHub Pages as a mirror — canonical is exactly the mechanism for two hosts serving identical content.",
-    "structuredData": "JSON-LD Person schema in index.html",
+    "canonicalUrl": "https://knotz3d-portfolio.vercel.app/",
+    "canonicalUrlNeedsUpdate": false,
+    "canonicalUrlNote": "canonical, og:url, og:image and twitter:image all point at the Vercel production URL, and the JSON-LD Person `url` matches. GitHub Pages serves the same bytes as a mirror. If the site moves to a custom domain, update all five plus this field.",
+    "structuredData": "JSON-LD Person schema in index.html, with sameAs covering GitHub, LinkedIn and Dazzle Divas.",
     "ogImage": "public/og.jpg (1200x630, 85 kB)"
   },
   "designDecisions": [
@@ -231,26 +235,6 @@
   ],
   "openItems": [
     {
-      "id": "vercel-url",
-      "priority": "high",
-      "item": "Record the production *.vercel.app URL here and confirm the deploy ran against commit e6eac4a. Until then it is unknown whether the Vercel project is still connected to this repository at all."
-    },
-    {
-      "id": "canonical-urls",
-      "priority": "medium",
-      "item": "Only if Vercel becomes the primary host: repoint canonical / og:url / og:image in index.html and `seo.canonicalUrl` here. They are correct for GitHub Pages today."
-    },
-    {
-      "id": "linkedin",
-      "priority": "medium",
-      "item": "src/data/profile.ts contains a GUESSED LinkedIn URL. Verify or replace it before the site is promoted."
-    },
-    {
-      "id": "dates",
-      "priority": "medium",
-      "item": "Dazzle Divas start year (2018) was inferred from the company website's 'licensed and insured since 2018'. The SkyRun role has no start date, only 'Present'. Confirm both in src/data/content.ts."
-    },
-    {
       "id": "tests",
       "priority": "low",
       "item": "No automated tests. Playwright covers the other Knotz repos well; a smoke suite (boot, launch, warp, brief toggle, shard pickup) would protect the engine from regressions."
@@ -262,7 +246,7 @@
     }
   ],
   "knownRisks": [
-    "Vercel's dashboard settings for this project predate the rebuild. vercel.json overrides build command, output directory and framework, but an 'Ignored Build Step' rule or a production branch other than `main` would still block the deploy and cannot be seen from the repository.",
+    "Both hosts must be republished together or they drift. Vercel redeploys automatically on push to main; GitHub Pages does not, and needs `npm run deploy`. If Pages is left stale it serves an old resume from an indexed URL.",
     "Fonts load from Google Fonts. If they fail, the design falls back to system stacks and still reads correctly, but tracking and weights shift.",
     "Progress is stored in localStorage under the key `signal.save.v2`. Bumping the shape means bumping the version and the `v` check in src/core/Save.ts, or returning visitors get a blank run."
   ],
@@ -276,6 +260,26 @@
       "id": "gh-pages",
       "resolved": "2026-09-03",
       "note": "GitHub Pages was serving the pre-rebuild portfolio. Republished with `npm run deploy` and verified: live bytes hash-match the local build and execute correctly in a browser."
+    },
+    {
+      "id": "vercel-url",
+      "resolved": "2026-09-03",
+      "note": "Production URL is https://knotz3d-portfolio.vercel.app/. Confirmed serving the merged commit, byte-identical to the local build, with vercel.json's headers applied."
+    },
+    {
+      "id": "canonical-urls",
+      "resolved": "2026-09-03",
+      "note": "canonical / og:url / og:image / twitter:image and the JSON-LD url all point at the Vercel production URL."
+    },
+    {
+      "id": "linkedin",
+      "resolved": "2026-09-03",
+      "note": "URL confirmed by the owner. It was defined in profile.ts but never rendered; now surfaced in the written brief contact row, the terminal `contact` command, the UPLINK sector CTAs and the JSON-LD sameAs."
+    },
+    {
+      "id": "dates",
+      "resolved": "2026-09-03",
+      "note": "Dazzle Divas 2018 confirmed. SkyRun set to 'Aug 2026 — Present' in both the ventures card and the career timeline."
     }
   ]
 }

@@ -155,6 +155,7 @@ export class Terminal {
         this.print(`email    ${profile.email}`, 'ok');
         this.print(`phone    ${profile.phone}`, 'ok');
         this.printLink('github   ', profile.github);
+        this.printLink('linkedin ', profile.linkedin);
         this.printLink('cleaning ', profile.siteDazzle);
       },
     });

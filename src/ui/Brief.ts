@@ -14,6 +14,13 @@ export function buildBrief(): HTMLElement {
     el('a', { class: 'btn btn--sm', href: profile.github, target: '_blank', rel: 'noopener noreferrer', text: 'GitHub' }),
     el('a', {
       class: 'btn btn--sm',
+      href: profile.linkedin,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      text: 'LinkedIn',
+    }),
+    el('a', {
+      class: 'btn btn--sm',
       href: profile.siteDazzle,
       target: '_blank',
       rel: 'noopener noreferrer',

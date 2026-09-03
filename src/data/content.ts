@@ -43,7 +43,7 @@ export const ventures: Venture[] = [
     id: 'skyrun',
     name: 'SkyRun Daytona Vacation Rentals',
     role: 'Director of Sales, Marketing & Technology',
-    period: 'Present',
+    period: 'Aug 2026 — Present',
     url: 'https://skyrun.com/daytona/',
     summary:
       'Short-term rental management across Daytona Beach, Daytona Beach Shores, Ormond Beach, New Smyrna Beach and Ponce Inlet. I own the revenue side and the systems that run it.',
@@ -289,7 +289,7 @@ export const career: Role[] = [
   {
     company: 'SkyRun Daytona Vacation Rentals',
     title: 'Director of Sales, Marketing & Technology',
-    period: 'Present',
+    period: 'Aug 2026 — Present',
     place: 'Daytona Beach, FL',
     current: true,
     points: [
