@@ -123,12 +123,20 @@ a sector's `cards` block. The brief picks it up automatically.
 
 `base` is `'./'`, so the build works from any path.
 
+- **Vercel (primary):** `vercel.json` pins the framework, `npm ci`, `npm run build`
+  and `dist/`, so the deploy does not depend on dashboard settings left over from
+  the previous app. Node is pinned to 22.x via `engines`.
 - **GitHub Pages:** `npm run deploy` publishes `dist/` to the `gh-pages` branch.
-- **Vercel / Netlify:** build `npm run build`, publish `dist/`.
 
-If the site moves off `knotenvy.github.io/Knotz3DPortfolio/`, update the absolute
-`og:image`, `og:url` and `canonical` URLs in `index.html` — social scrapers need
-absolute paths.
+Whenever the primary host changes, update the absolute `og:image`, `og:url` and
+`canonical` URLs in `index.html` — social scrapers need absolute paths — and the
+`seo` block in `handoff.json`.
+
+## Handoff
+
+`handoff.json` is the state-of-the-project record: what is deployed where, what
+is still open, which content is unverified, and the decisions behind the build.
+Update it whenever something material changes.
 
 ## Licence
 

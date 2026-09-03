@@ -1,0 +1,243 @@
+{
+  "$comment": "Handoff record for the next team or agent picking up this repository. Update the `updated` field and the relevant sections whenever the project changes materially.",
+  "schemaVersion": 1,
+  "updated": "2026-09-03",
+  "updatedBy": "Claude Opus 5, session_01MLkUHSuBya3phwRdcMnjUf",
+
+  "project": {
+    "name": "SIGNAL",
+    "repository": "KnotEnvy/Knotz3DPortfolio",
+    "description": "The interactive, gamified portfolio and resume of Jay W. Snyder. A hand-written Three.js game engine where six sectors of a neon corridor each hold one chapter of the resume, unlocked by collecting data shards. Ships with an equivalent written brief for accessibility, SEO and visitors in a hurry.",
+    "audience": "Business owners and operators evaluating whether to hire Jay to build AI systems for them. Secondary: recruiters and engineering leads.",
+    "goal": "Convert. The site is the proof that Jay builds ambitious interactive software; the written brief is the escape hatch for anyone who just wants the facts."
+  },
+
+  "owner": {
+    "name": "Jay W. Snyder",
+    "handle": "KnotEnvy",
+    "email": "jwsnyder@gmail.com",
+    "phone": "(386) 301-5775",
+    "location": "Daytona Beach, Florida",
+    "currentRoles": [
+      "Owner, Dazzle Divas Cleaning",
+      "Director of Sales, Marketing & Technology, SkyRun Daytona Vacation Rentals",
+      "Founder / AI Engineer, Hacktivate Nation"
+    ]
+  },
+
+  "status": {
+    "phase": "merged to main, awaiting production deploy verification",
+    "mainBranch": "main",
+    "mainHead": "a0ad14edc9f99d6986f74ec2793d4a6c08821400",
+    "featureBranch": "claude/gamified-3d-portfolio-r7vfyi",
+    "featureBranchMerged": true,
+    "featureBranchSafeToDelete": true
+  },
+
+  "deployment": {
+    "intendedHost": "Vercel",
+    "productionUrl": null,
+    "productionUrlNote": "NOT YET RECORDED. The Vercel project URL was not reachable from the session that wrote this file, and the Vercel API / GitHub deployments API were both unavailable. Fill this in from the Vercel dashboard, then update `seo.canonicalUrl` and the og:url / og:image / canonical tags in index.html to match.",
+    "verified": false,
+    "verificationBlockers": [
+      "No Vercel API token available in the session.",
+      "GitHub deployments and commit-status API endpoints are not enabled for this session's GitHub App installation.",
+      "Guessed *.vercel.app hostnames all returned DEPLOYMENT_NOT_FOUND or belonged to unrelated projects."
+    ],
+    "config": {
+      "file": "vercel.json",
+      "framework": "vite",
+      "installCommand": "npm ci",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist",
+      "nodeVersion": "22.x (pinned via package.json engines)",
+      "note": "vercel.json intentionally makes the build explicit rather than relying on Vercel's framework auto-detection, because this project's Vercel dashboard settings were configured for the previous React/CRA-era app and may not match. Dashboard settings are overridden by vercel.json."
+    },
+    "otherHosts": {
+      "githubPages": {
+        "url": "https://knotenvy.github.io/Knotz3DPortfolio/",
+        "live": true,
+        "stale": true,
+        "note": "Still serving the OLD pre-rebuild portfolio from the gh-pages branch. `npm run deploy` republishes it from the current build. Decide whether GitHub Pages should stay live at all, or redirect to the Vercel domain."
+      }
+    }
+  },
+
+  "stack": {
+    "runtime": "Browser, no server",
+    "language": "TypeScript (strict, noUnusedLocals, noUnusedParameters)",
+    "bundler": "Vite 6",
+    "rendering": "Three.js r180, hand-written engine (no React, no react-three-fiber)",
+    "styling": "Plain CSS with custom-property design tokens (no Tailwind)",
+    "runtimeDependencies": ["three"],
+    "removedInRebuild": ["react", "react-dom", "@react-three/fiber", "@react-three/drei", "framer-motion", "tailwindcss", "@emailjs/browser", "maath", "react-tilt", "react-router-dom", "react-vertical-timeline-component"],
+    "bundleSize": {
+      "appJs": "115.8 kB raw / 38.6 kB gzip",
+      "threeJs": "532.3 kB raw / 135.8 kB gzip",
+      "css": "25.8 kB raw / 5.7 kB gzip",
+      "note": "Three is deliberately split into its own chunk via rollupOptions.manualChunks so app changes do not invalidate it."
+    }
+  },
+
+  "commands": {
+    "install": "npm install",
+    "dev": "npm run dev",
+    "typecheck": "npm run typecheck",
+    "build": "npm run build",
+    "preview": "npm run preview",
+    "deployGithubPages": "npm run deploy",
+    "note": "There is no test suite. `npm run build` runs `tsc --noEmit` first, so a type error fails the build. Verification during the rebuild was done with Playwright driving the production preview; those scripts were scratch files and were not committed."
+  },
+
+  "architecture": {
+    "entryPoint": "src/main.ts",
+    "loop": "Fixed-step simulation at 60 Hz with an accumulator and a 5-step cap, decoupled from rendering. Frame rate never changes flight feel.",
+    "directories": {
+      "src/core": "Engine (renderer, post chain, adaptive quality tiers), Input, Audio, Events bus, Save, Math helpers",
+      "src/shaders": "Film grain / vignette / chromatic aberration post pass",
+      "src/world": "World orchestration, Sector, Landmark geometry, Corridor (gates + debris), Grid, Starfield, Label sprites",
+      "src/player": "Arcade flight model and spring chase camera",
+      "src/game": "GameState: XP, ranks, shards, achievements",
+      "src/ui": "HUD, Codex dossier, Terminal, Toasts, Boot, TopBar, Brief, Complete",
+      "src/data": "ALL CONTENT. Nothing user-visible is hard-coded elsewhere.",
+      "src/styles": "Design tokens plus per-component CSS"
+    },
+    "notableTechniques": [
+      "Adaptive quality governor: sustained frame-time drops step pixel ratio, bloom, grain and star count down a tier instead of stuttering.",
+      "Procedural WebAudio for the drone, collection chimes and decrypt fanfare. Zero audio files ship.",
+      "Derivative-antialiased infinite grid shader; GPU point-cloud starfield with a seeded PRNG so the sky is identical every visit.",
+      "Corridor gates fade by view depth via an onBeforeCompile shader injection, so a gate sweeping past the camera never blows out to a white bar.",
+      "Shard magnetism: shards break orbit and chase the ship inside 30 units, so collecting is 'fly roughly there' rather than a precision test.",
+      "Landmarks are offset to the side of the flight line, because the corridor spline runs through each sector centre."
+    ],
+    "debugging": "`window.SIGNAL.debug()` in the browser console returns ship position, yaw, speed, progress and per-sector shard distances."
+  },
+
+  "content": {
+    "singleSourceOfTruth": true,
+    "note": "src/data feeds BOTH the 3D dossiers and the written brief. Editing one updates both; they cannot drift.",
+    "files": {
+      "src/data/profile.ts": "Name, contact, tagline, pitch paragraphs, values, headline stats",
+      "src/data/content.ts": "Ventures, projects, career timeline, education, services, skill groups",
+      "src/data/sectors.ts": "How that content is laid out across the six sectors: position, colour, shard count, blocks, locked bonus block"
+    },
+    "howToAddAProject": "Add an entry to `projects` in src/data/content.ts, then reference its id from a sector's `cards` block in src/data/sectors.ts. The written brief picks it up automatically.",
+    "sectors": [
+      { "id": "origin", "name": "ORIGIN", "covers": "Positioning, pitch, headline stats", "shards": 5 },
+      { "id": "ventures", "name": "VENTURES", "covers": "Dazzle Divas Cleaning, SkyRun Daytona, Hacktivate Nation", "shards": 6 },
+      { "id": "forge", "name": "THE FORGE", "covers": "AI engineering projects and skills", "shards": 7 },
+      { "id": "arcade", "name": "ARCADE", "covers": "Game development projects and skills", "shards": 6 },
+      { "id": "track", "name": "TRACK RECORD", "covers": "Career timeline, education, business skills", "shards": 6 },
+      { "id": "uplink", "name": "UPLINK", "covers": "Services and contact CTAs", "shards": 5 }
+    ],
+    "totalShards": 35,
+    "featuredProjects": [
+      "hacktivate-nations-arcade",
+      "KnotzHardDrivin",
+      "KnotzGalaga2 (VOID ASCENDANT: GALAXIA)",
+      "KnotzEclipseVector",
+      "mathquest-florida",
+      "KnotzCrapzNCardz",
+      "KnotzFlix",
+      "Knotz-Raven-Mayhem",
+      "dazzle-divas-cleaning",
+      "KnotzGPT-Plus"
+    ]
+  },
+
+  "accessibility": {
+    "briefMode": "Every word in the 3D world also exists as a semantic, keyboard-navigable HTML document. Toggle with the toolbar button, the `B` key, the terminal `brief` command, or the skip link.",
+    "automaticFallbacks": [
+      "prefers-reduced-motion: reduce -> brief mode on first visit",
+      "No WebGL support -> brief mode, with an explanatory note",
+      "Any exception during engine start -> brief mode"
+    ],
+    "skipLink": "First tab stop on the page, jumps to the brief and switches modes.",
+    "liveRegion": "Achievement toasts are mirrored into a polite aria-live region.",
+    "note": "The brief lives in normal document flow as a direct child of <body>, NOT inside the fixed #ui overlay. Moving it back inside #ui breaks document scrolling and in-page anchors."
+  },
+
+  "seo": {
+    "canonicalUrl": "https://knotenvy.github.io/Knotz3DPortfolio/",
+    "canonicalUrlNeedsUpdate": true,
+    "canonicalUrlNote": "index.html currently points canonical, og:url and og:image at the GitHub Pages URL. If Vercel is the primary host, update all three to the Vercel domain. Social scrapers require absolute URLs.",
+    "structuredData": "JSON-LD Person schema in index.html",
+    "ogImage": "public/og.jpg (1200x630, 85 kB)"
+  },
+
+  "designDecisions": [
+    {
+      "decision": "Dual mode: playable world plus written brief",
+      "why": "A client evaluating Jay at 11pm may not want to fly a spaceship. The brief protects the conversion goal and covers accessibility, SEO and low-power devices."
+    },
+    {
+      "decision": "Raw Three.js instead of react-three-fiber",
+      "why": "Matches where Jay's recent work actually is (KnotzHardDrivin and KnotzGalaga2 are both raw three + Vite + TypeScript) and shows engine-level capability that React would hide."
+    },
+    {
+      "decision": "Direct, slightly confrontational copy ('Most people selling you AI have never had to make payroll. I have.')",
+      "why": "Owning two operating businesses while writing the software is Jay's real differentiator. Easy to soften in src/data/profile.ts if it ever needs to."
+    },
+    {
+      "decision": "A dossier stays open until dismissed, not until the ship drifts out of the sector",
+      "why": "Auto-closing snatched content away mid-sentence. The ship also drops to 42% cruise speed while a dossier is open."
+    }
+  ],
+
+  "bugsFixedDuringRebuild": [
+    "The #ui overlay won on CSS specificity and swallowed all pointer events, which silently killed drag-to-fly on touch devices.",
+    "The written brief lived inside a fixed full-viewport overlay, so the page could not scroll and in-page anchors went nowhere.",
+    "Dossiers closed themselves a few seconds after arrival as the ship drifted out of the sector radius.",
+    "The ORIGIN torus knot rendered as an invisible dark silhouette: a smooth knot has no hard edges, so EdgesGeometry produced nothing to draw."
+  ],
+
+  "openItems": [
+    {
+      "id": "vercel-url",
+      "priority": "high",
+      "item": "Record the production Vercel URL in this file and confirm the deploy actually ran against commit a0ad14e."
+    },
+    {
+      "id": "canonical-urls",
+      "priority": "high",
+      "item": "Once the production host is settled, update canonical / og:url / og:image in index.html and `seo.canonicalUrl` here."
+    },
+    {
+      "id": "gh-pages",
+      "priority": "medium",
+      "item": "GitHub Pages still serves the old portfolio. Either run `npm run deploy` to refresh it, or take it down / redirect it to the primary host."
+    },
+    {
+      "id": "linkedin",
+      "priority": "medium",
+      "item": "src/data/profile.ts contains a GUESSED LinkedIn URL. Verify or replace it before the site is promoted."
+    },
+    {
+      "id": "dates",
+      "priority": "medium",
+      "item": "Dazzle Divas start year (2018) was inferred from the company website's 'licensed and insured since 2018'. The SkyRun role has no start date, only 'Present'. Confirm both in src/data/content.ts."
+    },
+    {
+      "id": "tests",
+      "priority": "low",
+      "item": "No automated tests. Playwright covers the other Knotz repos well; a smoke suite (boot, launch, warp, brief toggle, shard pickup) would protect the engine from regressions."
+    },
+    {
+      "id": "og-image-refresh",
+      "priority": "low",
+      "item": "public/og.jpg was rendered with fallback system fonts because Google Fonts was unreachable in the build environment. Re-rendering it with Space Grotesk loaded would tighten the typography."
+    }
+  ],
+
+  "knownRisks": [
+    "Vercel's dashboard settings for this project predate the rebuild. vercel.json overrides build command, output directory and framework, but an 'Ignored Build Step' rule or a production branch other than `main` would still block the deploy and cannot be seen from the repository.",
+    "Fonts load from Google Fonts. If they fail, the design falls back to system stacks and still reads correctly, but tracking and weights shift.",
+    "Progress is stored in localStorage under the key `signal.save.v2`. Bumping the shape means bumping the version and the `v` check in src/core/Save.ts, or returning visitors get a blank run."
+  ],
+
+  "conventions": {
+    "branching": "Feature work on `claude/<topic>` branches, merged to `main` with --no-ff.",
+    "commits": "Imperative subject under ~72 chars, body explaining why. Co-Authored-By trailer for agent-assisted work.",
+    "codeStyle": "Match the surrounding file. Comments explain why, not what. Strict TypeScript; the build fails on unused locals and parameters."
+  }
+}
