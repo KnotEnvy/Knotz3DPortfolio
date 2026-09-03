@@ -1,0 +1,41 @@
+:root {
+  /* Surface */
+  --void: #04050a;
+  --ink: #080b14;
+  --panel: rgba(9, 13, 24, 0.82);
+  --panel-solid: #0a0e1a;
+  --hair: rgba(140, 200, 255, 0.16);
+  --hair-strong: rgba(140, 200, 255, 0.34);
+
+  /* Text */
+  --text: #e8eef7;
+  --text-dim: #9fb0c9;
+  --text-faint: #64748b;
+
+  /* Signal palette */
+  --signal: #4de1c1;
+  --pulse: #ff3d81;
+  --amber: #ffb454;
+  --violet: #8b5cf6;
+  --azure: #5b9cff;
+
+  /* Per-sector accent, swapped at runtime */
+  --accent: #4de1c1;
+  --accent-soft: rgba(77, 225, 193, 0.16);
+
+  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+
+  --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
