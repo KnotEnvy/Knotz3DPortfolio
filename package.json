@@ -5,7 +5,7 @@
   "type": "module",
   "description": "SIGNAL — the interactive, gamified portfolio of Jay W. Snyder: AI engineer, business builder, game developer.",
   "engines": {
-    "node": ">=20.19.0"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "vite",
