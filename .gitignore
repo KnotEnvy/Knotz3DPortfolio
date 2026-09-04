@@ -23,6 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
-# Scratch verification/capture scripts. Browser-driving harnesses are written
-# ad hoc while checking a build and are deliberately not part of the source.
+# Scratch verification/capture harnesses, and the frames they write. Both are
+# produced ad hoc while checking a build — by me and by reviewers driving it —
+# and are deliberately not part of the source. The image rule exists because the
+# scripts were ignored but their output was not, so every review pass left
+# untracked PNGs in the repository root.
 _*.mjs
+_*.png
+_*.jpg
