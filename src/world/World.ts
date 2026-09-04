@@ -97,6 +97,13 @@ export class World {
     scene.fog = this.fog;
   }
 
+  /** Tag only the sector being flown to; see Sector.labelled. */
+  setLabelled(index: number): void {
+    this.sectors.forEach((s, i) => {
+      s.labelled = i === index;
+    });
+  }
+
   sector(id: SectorId): Sector | undefined {
     return this.sectors.find((s) => s.def.id === id);
   }

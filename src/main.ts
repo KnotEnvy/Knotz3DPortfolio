@@ -534,6 +534,7 @@ class App {
       }
     }
 
+    this.world.setLabelled(this.director.targetIndex);
     this.rig.update(this.ship, dt, this.elapsed);
     this.ship.updateTrail(this.engine.camera);
     this.pickups.update(dt, this.elapsed, this.ship, this.engine.camera);

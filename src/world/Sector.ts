@@ -106,6 +106,13 @@ export class Sector {
   distance = 0;
 
   state: NodeState = 'idle';
+  /**
+   * Only the sector currently being flown to shows its tag. Every sector
+   * showing one meant three or four tiny labels piled up around the vanishing
+   * point at once, which read as a smear of coloured noise in the middle of the
+   * frame rather than as signage.
+   */
+  labelled = false;
   maxHp = 20;
   hp = 20;
   /** Portion of maxHp absorbed by the shield. */
@@ -148,7 +155,7 @@ export class Sector {
     this.object.add(this.landmark.object);
 
     this.label = makeLabel(def.code, def.name, def.subtitle, def.color);
-    this.label.sprite.position.set(0, 52, 0);
+    this.label.sprite.position.set(0, 56, 0);
     this.object.add(this.label.sprite);
 
     this.shieldMat = keep(
@@ -360,9 +367,10 @@ export class Sector {
     // node you are supposed to be shooting.
     const near = smoothstep(1500, 700, dist);
     const tooClose = smoothstep(520, 260, dist);
-    (this.label.sprite.material as THREE.SpriteMaterial).opacity = clamp(near * (1 - tooClose), 0, 1);
-    this.label.sprite.position.y = 46 + Math.sin(elapsed * 0.7) * 1.4;
-    this.label.sprite.scale.set(58, 18, 1);
+    const show = this.labelled ? 1 : 0;
+    (this.label.sprite.material as THREE.SpriteMaterial).opacity = clamp(near * (1 - tooClose) * show, 0, 1);
+    this.label.sprite.position.y = 52 + Math.sin(elapsed * 0.7) * 1.4;
+    this.label.sprite.scale.set(56, 23, 1);
 
     this.shieldMat.uniforms.uTime.value = elapsed;
     this.shieldMat.uniforms.uFlash.value = this.hitFlash;

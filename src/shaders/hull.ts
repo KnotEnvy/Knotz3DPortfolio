@@ -23,6 +23,12 @@ export interface HullOptions {
   power?: number;
   /** Adds a travelling scanline band up the object's local Y. */
   scan?: boolean;
+  /**
+   * Panel-line density in local units. 0 disables. This is what stops every
+   * surface reading as untextured plastic: without it the whole scene is one
+   * fresnel formula repeated, and no amount of bloom makes that look built.
+   */
+  panel?: number;
   /** Emissive floor, so the body itself glows a little. */
   glow?: number;
   transparent?: boolean;
@@ -65,6 +71,7 @@ const FRAG = /* glsl */ `
   uniform float uOpacity;
   uniform vec3 uFogColor;
   uniform float uFogDensity;
+  uniform float uPanel;
 
   varying vec3 vNormalW;
   varying vec3 vViewDir;
@@ -84,6 +91,40 @@ const FRAG = /* glsl */ `
     float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), uPower);
 
     vec3 col = uBase * (0.22 + key * 0.75 + fill * 0.3);
+
+    /*
+     * Procedural panelling.
+     *
+     * Triplanar so it works on any shape without UVs, and weighted by the
+     * surface normal so the lines run across faces rather than smearing down
+     * them. Two frequencies: wide plates, and a finer seam every fourth plate.
+     *
+     * This is the cheapest available answer to "everything is flat emissive
+     * with no material variation" — it gives every hull, prop, enemy and
+     * landmark a sense of being fabricated out of parts, from one extra dozen
+     * instructions, with no texture fetch and no extra draw.
+     */
+    if (uPanel > 0.0) {
+      vec3 p = vLocal / uPanel;
+      vec3 seam = abs(fract(p) - 0.5);
+      vec3 fw = fwidth(p) * 1.5;
+      vec3 lines = 1.0 - smoothstep(vec3(0.0), max(fw, vec3(0.015)), seam);
+      vec3 an = abs(N);
+      // Triplanar weights: a line only counts on the two axes across the face.
+      float plate = clamp(lines.x * (1.0 - an.x) + lines.y * (1.0 - an.y) + lines.z * (1.0 - an.z), 0.0, 1.0);
+
+      vec3 q = p * 0.25;
+      vec3 seam2 = abs(fract(q) - 0.5);
+      vec3 fw2 = fwidth(q) * 1.5;
+      vec3 lines2 = 1.0 - smoothstep(vec3(0.0), max(fw2, vec3(0.01)), seam2);
+      float major = clamp(lines2.x * (1.0 - an.x) + lines2.y * (1.0 - an.y) + lines2.z * (1.0 - an.z), 0.0, 1.0);
+
+      // Recessed seams read as shadow; the wider joins pick up a little of the
+      // accent, as though light is leaking out of the structure.
+      col *= 1.0 - plate * 0.5;
+      col += uColor * major * 0.16;
+    }
+
     col += uColor * fres * uRim * 1.9;
     col += uColor * uGlow;
 
@@ -131,6 +172,7 @@ export function hullMaterial(opts: HullOptions): HullMaterial {
       uOpacity: { value: opts.opacity ?? 1 },
       uFogColor: { value: new THREE.Color(0x05070f) },
       uFogDensity: { value: 0 },
+      uPanel: { value: opts.panel ?? 0 },
     },
     vertexShader: VERT,
     fragmentShader: FRAG,

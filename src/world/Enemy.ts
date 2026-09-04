@@ -35,7 +35,7 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
 
   // Hot rim, near-black body, and a white-hot eye. Hostiles have to separate
   // from a sector's own colour scheme at a glance and at distance.
-  const shell = keep(hullMaterial({ color, base: 0x1c0a08, rim: 2.4, power: 1.5, glow: 0.16 }));
+  const shell = keep(hullMaterial({ color, base: 0x1c0a08, rim: 2.4, power: 1.5, glow: 0.16, panel: 0.9 }));
   mats.push(shell);
 
   const eye = (r: number, z: number, c = 0xffffff) => {

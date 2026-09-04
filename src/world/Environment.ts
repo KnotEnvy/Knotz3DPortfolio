@@ -116,7 +116,7 @@ export class Environment {
         // tube. Anything less and the player flies through the scenery.
         const side = i % 2 === 0 ? 1 : -1;
         const radius = radii[variant] * Math.max(sc.x, sc.y, sc.z);
-        const clearance = TUBE_RADIUS + 58 + radius;
+        const clearance = TUBE_RADIUS + 82 + radius;
         const out = clearance + rnd() * rnd() * 260;
         // Biased downward so structures rise from the causeway floor instead of
         // hanging at arbitrary heights. Props scattered evenly above and below
@@ -220,47 +220,42 @@ export class Environment {
 }
 
 /**
+ * A tapered, bevelled slab.
+ *
+ * Raw BoxGeometry is what made the flanks read as a bar chart: a box has no
+ * chamfer, so its silhouette is four hard verticals and the Fresnel rim has
+ * nothing to catch except the outline. A cylinder with a low segment count is a
+ * prism — give it a different top and bottom radius and it tapers, and the extra
+ * facets pick up the rim light along their length. Same cost, far better read.
+ */
+function slab(bottom: number, top: number, height: number, sides = 6, twist = 0): THREE.BufferGeometry {
+  const g = new THREE.CylinderGeometry(top, bottom, height, sides, 2);
+  if (twist !== 0) g.rotateY(twist);
+  return g;
+}
+
+/**
  * The silhouette vocabulary for each sector: three related shapes that share a
  * language, so a band reads as one place built by one civilisation rather than
  * as a row of identical blocks.
  */
 function propGeometries(form: SectorDef['form']): THREE.BufferGeometry[] {
   switch (form) {
-    // ORIGIN: raw monoliths and pylons. Nothing built yet, just the material.
+    // ORIGIN: monoliths and pylons. Nothing built yet, just the material.
     case 'knot':
-      return [
-        new THREE.BoxGeometry(6, 46, 6, 1, 3, 1),
-        new THREE.ConeGeometry(7, 34, 4, 1),
-        new THREE.BoxGeometry(17, 24, 8, 1, 2, 1),
-      ];
+      return [slab(5, 3.4, 46, 5), new THREE.ConeGeometry(7, 34, 5, 1), slab(11, 8, 24, 6, 0.4)];
     // VENTURES: towers and blocks. Two businesses, built upward.
     case 'twin':
-      return [
-        new THREE.BoxGeometry(14, 78, 14, 1, 6, 1),
-        new THREE.CylinderGeometry(8, 13, 62, 6, 4),
-        new THREE.BoxGeometry(32, 30, 18, 2, 2, 1),
-      ];
+      return [slab(11, 7, 78, 4, Math.PI / 4), slab(13, 8, 62, 6), slab(20, 16, 30, 8, 0.2)];
     // THE FORGE: pressure vessels, coils and pipe racks.
     case 'reactor':
-      return [
-        new THREE.CapsuleGeometry(6, 26, 5, 10),
-        new THREE.TorusGeometry(14, 3.2, 6, 20),
-        new THREE.BoxGeometry(9, 44, 9, 1, 4, 1),
-      ];
+      return [new THREE.CapsuleGeometry(6, 26, 5, 10), new THREE.TorusGeometry(14, 3.2, 6, 20), slab(7, 5, 44, 6)];
     // ARCADE: screen walls, cabinet bodies and neon tubes.
     case 'cabinet':
-      return [
-        new THREE.BoxGeometry(30, 22, 2.5),
-        new THREE.BoxGeometry(15, 32, 11, 1, 3, 1),
-        new THREE.CylinderGeometry(1.6, 1.6, 42, 8),
-      ];
+      return [slab(18, 15, 22, 4, Math.PI / 4), slab(11, 7, 32, 5), new THREE.CylinderGeometry(1.6, 1.6, 42, 8)];
     // TRACK RECORD: archive plates, columns and rings.
     case 'spine':
-      return [
-        new THREE.BoxGeometry(46, 2.6, 22),
-        new THREE.BoxGeometry(11, 34, 11, 1, 3, 1),
-        new THREE.TorusGeometry(19, 1.8, 4, 10),
-      ];
+      return [slab(26, 22, 3.2, 8), slab(9, 6, 34, 6), new THREE.TorusGeometry(19, 1.8, 5, 12)];
     // UPLINK: masts, dishes and relay nodes.
     case 'beacon':
       return [

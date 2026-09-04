@@ -28,7 +28,7 @@ const glowMat = (color: number, opacity = 1) =>
 // lights to rig, and the rim picks out every edge of these silhouettes, which
 // is the whole reason they are recognisable from a kilometre out.
 const shellMat = (color: number) =>
-  track(hullMaterial({ color, base: 0x0a1220, rim: 1.05, power: 2.3, glow: 0.05 }));
+  track(hullMaterial({ color, base: 0x0a1220, rim: 1.05, power: 2.3, glow: 0.05, panel: 3.5 }));
 
 const wireMat = (color: number, opacity: number) =>
   track(new THREE.LineBasicMaterial({ color, transparent: true, opacity, toneMapped: false }));
