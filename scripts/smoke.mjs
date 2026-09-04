@@ -261,6 +261,51 @@ ok(sawSlowing, 'the ship was observed being throttled back on the way into a nod
 ok(!contradiction, `BOOST is never lit while the ship is slower than cruise (${JSON.stringify(contradiction)})`);
 await ph.close();
 
+/*
+ * 5e. The console must be clean through a real fight.
+ *
+ * Every behavioural check in this file passed while the threat-marker shader
+ * failed to compile, because a ShaderMaterial whose fragment shader will not
+ * build simply draws nothing — the game plays identically, the debug hook
+ * reports identically, and the markers are just gone. It shipped, and it was
+ * caught by a reviewer reading the console rather than by anything here.
+ *
+ * A shader is declared broken by the GPU, out loud, on first use. Listening for
+ * that costs one page and covers every material in the project at once, which
+ * is a far better return than asserting anything about markers specifically.
+ * Enemies only spawn on engagement, so this has to actually get into a fight.
+ */
+const pc = await browser.newPage({ viewport: { width: 1200, height: 700 } });
+const consoleErrors = [];
+pc.on('console', (m) => {
+  if (m.type() !== 'error' && m.type() !== 'warning') return;
+  const t = m.text();
+  // Font CDNs and analytics are not ours and are blocked in some sandboxes.
+  if (/fonts\.googleapis|fonts\.gstatic|favicon/i.test(t)) return;
+  consoleErrors.push(`${m.type()}: ${t.slice(0, 300)}`);
+});
+pc.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message.slice(0, 300)}`));
+await pc.goto(`${BASE}/?tier=2`, { waitUntil: 'load' });
+await pc.waitForTimeout(2200);
+await pc.getByRole('button', { name: /Launch|Resume/ }).click();
+await pc.waitForTimeout(1800);
+await pc.evaluate(() => window.SIGNAL.goto('origin'));
+let fought = false;
+for (let i = 0; i < 30 && !fought; i++) {
+  await pc.waitForTimeout(700);
+  fought = await pc.evaluate(() => window.SIGNAL.debug().hostiles > 0);
+}
+await pc.waitForTimeout(2500);
+// Also exercise the node, dossier and completion materials.
+await pc.evaluate(() => window.SIGNAL.forceDossier());
+await pc.waitForTimeout(2000);
+ok(fought, 'the console check actually reached a fight, so enemy materials were built');
+ok(
+  consoleErrors.length === 0,
+  `no console errors during a real run (${consoleErrors.length}): ${consoleErrors.slice(0, 3).join(' | ')}`,
+);
+await pc.close();
+
 /* 5. Title card must survive a narrow viewport. */
 const p3 = await browser.newPage({ viewport: { width: 320, height: 720 } });
 await p3.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });

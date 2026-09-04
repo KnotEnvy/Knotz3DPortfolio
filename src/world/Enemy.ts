@@ -172,13 +172,21 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
           // Billboard: strip rotation from the model-view matrix so the quad
           // always faces the camera regardless of how the hull is oriented.
           vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-          mv.xy += position.xy;
+          // Hold a minimum apparent size. Left to shrink with the hull, a marker
+          // on a hostile 300 units out is a couple of pixels, and the only lever
+          // left is brightness — which trades invisibility for a bloom blob and
+          // destroys the bracket shape that carries the meaning. Past this range
+          // the marker stops shrinking; inside it, it tracks the hull normally.
+          float grow = max(1.0, -mv.z / 150.0);
+          mv.xy += position.xy * grow;
           gl_Position = projectionMatrix * mv;
         }
       `,
       fragmentShader: /* glsl */ `
         precision highp float;
         uniform vec3 uColor;
+        uniform float uTime;
+        uniform float uHit;
         varying vec2 vUv;
         void main() {
           vec2 q = vUv - 0.5;
