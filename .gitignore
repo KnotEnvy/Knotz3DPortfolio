@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch verification/capture scripts. Browser-driving harnesses are written
+# ad hoc while checking a build and are deliberately not part of the source.
+_*.mjs
