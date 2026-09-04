@@ -44,6 +44,7 @@ export class Hud {
   private hullBar: HTMLElement;
   private hullWrap: HTMLElement;
   private speedNum: HTMLElement;
+  private speedUnit: HTMLElement;
   private boostPip: HTMLElement;
 
   private reticle: HTMLElement;
@@ -117,6 +118,7 @@ export class Hud {
       el('div', { class: 'hull__bar' }, [this.hullBar]),
     ]);
     this.speedNum = el('b', { text: '0' });
+    this.speedUnit = el('span', { text: 'm/s' });
     this.boostPip = el('span', { class: 'flight__boost', text: 'BOOST' });
 
     /* ------------------------------------------------------ reticle */
@@ -168,7 +170,7 @@ export class Hud {
         ]),
         el('div', { class: 'flight' }, [
           this.hullWrap,
-          el('div', { class: 'flight__speed' }, [this.speedNum, el('span', { text: 'm/s' }), this.boostPip]),
+          el('div', { class: 'flight__speed' }, [this.speedNum, this.speedUnit, this.boostPip]),
         ]),
         this.hint,
       ]),
@@ -284,9 +286,14 @@ export class Hud {
     });
 
     /* flight data */
+    // While the mission holds the ship at a node, say so rather than reporting a
+    // speed of zero: the throttle is not the visitor's to use, and "0 m/s" beside
+    // a lit BOOST chip reads as a broken instrument rather than a game state.
     const speed = Math.round(ship.speed);
-    if (this.speedNum.textContent !== String(speed)) this.speedNum.textContent = String(speed);
-    this.boostPip.classList.toggle('on', ship.boostAmount > 0.35);
+    const label = ship.held ? 'HOLD' : String(speed);
+    if (this.speedNum.textContent !== label) this.speedNum.textContent = label;
+    this.speedUnit.hidden = ship.held;
+    this.boostPip.classList.toggle('on', ship.boostAmount > 0.35 && !ship.held);
     this.hullBar.style.width = `${Math.max(0, ship.integrity) * 100}%`;
     const low = ship.integrity < 0.35;
     this.hullWrap.classList.toggle('low', low);

@@ -210,6 +210,45 @@ const afterObj = await pp.evaluate(() => window.SIGNAL.debug().objective);
 ok(clicked && beforeObj !== afterObj, `clicking a route pip jumps sector ("${beforeObj}" -> "${afterObj}")`);
 await pp.close();
 
+/*
+ * 5d. The flight readout must never contradict itself.
+ *
+ * At a locked node the mission takes the throttle away, so speed damps to zero
+ * — but the boost chip stayed lit if the player was holding boost, and the
+ * corridor still streaked past. "0 m/s" beside a lit BOOST reads as a broken
+ * instrument to anyone who does not already know what a standoff is, and a
+ * reviewer flagged it as the one thing on screen that looked like a bug.
+ */
+const ph = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await ph.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });
+await ph.waitForTimeout(2200);
+await ph.getByRole('button', { name: /Launch|Resume/ }).click();
+await ph.waitForTimeout(1500);
+await ph.evaluate(() => window.SIGNAL.goto('origin'));
+// Hold boost throughout, which is the state that used to produce the mismatch.
+await ph.keyboard.down('Shift');
+let heldState = null;
+for (let i = 0; i < 90 && !heldState; i++) {
+  await ph.waitForTimeout(400);
+  heldState = await ph.evaluate(() => {
+    const d = window.SIGNAL.debug();
+    if (d.phase !== 'node' && d.phase !== 'engage') return null;
+    if (d.speed > 0.5) return null;
+    return {
+      phase: d.phase,
+      speed: d.speed,
+      label: document.querySelector('.flight__speed b')?.textContent,
+      boostLit: document.querySelector('.flight__boost')?.classList.contains('on'),
+    };
+  });
+}
+await ph.keyboard.up('Shift');
+ok(
+  !heldState || (heldState.label === 'HOLD' && !heldState.boostLit),
+  `a stopped ship never shows a speed of zero beside a lit BOOST (${JSON.stringify(heldState)})`,
+);
+await ph.close();
+
 /* 5. Title card must survive a narrow viewport. */
 const p3 = await browser.newPage({ viewport: { width: 320, height: 720 } });
 await p3.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });

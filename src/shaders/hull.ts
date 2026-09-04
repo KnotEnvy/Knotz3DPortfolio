@@ -119,10 +119,34 @@ const FRAG = /* glsl */ `
       vec3 lines2 = 1.0 - smoothstep(vec3(0.0), max(fw2, vec3(0.01)), seam2);
       float major = clamp(lines2.x * (1.0 - an.x) + lines2.y * (1.0 - an.y) + lines2.z * (1.0 - an.z), 0.0, 1.0);
 
+      /*
+       * Seam lines are high frequency, and high frequency is exactly what
+       * distance destroys. Worse than destroys: once a plate is about a pixel
+       * across, every fragment is "on a line", plate saturates to 1, and the
+       * whole surface goes uniformly dark — panelling that actively makes
+       * things look worse the further away they are. Fade the line terms out
+       * before they reach that point.
+       */
+      float cellPx = max(max(fw.x, fw.y), fw.z);
+      float lineFade = 1.0 - smoothstep(0.22, 0.5, cellPx);
+
       // Recessed seams read as shadow; the wider joins pick up a little of the
       // accent, as though light is leaking out of the structure.
-      col *= 1.0 - plate * 0.62;
-      col += uColor * major * 0.28;
+      col *= 1.0 - plate * 0.62 * lineFade;
+      col += uColor * major * 0.28 * lineFade;
+
+      /*
+       * Per-plate tone, which is what actually carries the material story at
+       * gameplay range. Reviewers kept saying the panelling "all but disappears
+       * under fog and bloom" at combat distance, and they were right: lines
+       * alone cannot survive it. Plate *values* are low frequency, so they
+       * survive any distance the geometry itself does — a distant hull reads as
+       * assembled out of slightly mismatched panels rather than as one flat
+       * shape, which is the whole point.
+       */
+      vec3 cell = floor(p);
+      float tone = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+      col *= 0.90 + tone * 0.20;
     }
 
     col += uColor * fres * uRim * 1.9;

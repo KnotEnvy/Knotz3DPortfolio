@@ -350,6 +350,8 @@ export class Combat {
           for (const m of e.visual.mats) m.uniforms.uHit.value = e.flash;
         }
         for (const m of e.visual.mats) m.uniforms.uTime.value = elapsed;
+        e.visual.marker.uniforms.uTime.value = elapsed;
+        e.visual.marker.uniforms.uHit.value = e.flash;
 
         // Survivors disengage rather than trailing the player forever.
         if ((this.waveAge.get(e.wave) ?? 0) > WAVE_TIMEOUT) {

@@ -263,7 +263,11 @@ export class Overlay {
       const seen = this.state.hasVisited(s.id);
       // Never "Locked". A hurried operator must be able to jump straight to
       // UPLINK — the chapter that actually converts — without playing to it.
-      node.textContent = done ? 'Decrypted' : seen ? 'Reached' : 'Jump ahead';
+      // "Jump ahead" was ambiguous on a first read — jump *to* this sector, or
+      // skip past its content? For a visitor whose whole reason to be here is
+      // the content, half of that reading is alarming. "Fly here" only means
+      // one thing.
+      node.textContent = done ? 'Decrypted' : seen ? 'Reached' : 'Fly here';
       node.className = done ? 'jump__state done' : seen ? 'jump__state seen' : 'jump__state';
     }
   }

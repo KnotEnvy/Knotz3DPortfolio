@@ -205,8 +205,17 @@ export class Sector {
     this.ring.rotation.x = Math.PI / 2.1;
     this.object.add(this.ring);
 
-    // Exposed core, hidden until the shield drops.
-    this.coreMat = keep(glowMaterial(0xffffff, 0));
+    /*
+     * Exposed core, hidden until the shield drops.
+     *
+     * Not pure white. A white emissive sphere sits far above the bloom
+     * threshold at any opacity worth seeing, so it blew into a featureless
+     * blob that swallowed its own geometry and out-shouted the shield it is
+     * meant to be revealed inside. Tinted well toward the sector accent, it
+     * still reads as the hottest thing in the frame while keeping a shape and
+     * a colour identity.
+     */
+    this.coreMat = keep(glowMaterial(new THREE.Color(def.color).lerp(new THREE.Color(0xffffff), 0.45).getHex(), 0));
     this.core = new THREE.Mesh(keep(new THREE.IcosahedronGeometry(6.4, 1)), this.coreMat);
     this.core.visible = false;
     this.object.add(this.core);
@@ -387,7 +396,7 @@ export class Sector {
       this.shield.visible = false;
       this.cage.visible = false;
       this.core.visible = true;
-      this.coreMat.opacity = 0.3 + 0.4 * k;
+      this.coreMat.opacity = 0.24 + 0.32 * k;
       this.core.scale.setScalar(1 + Math.sin(elapsed * 1.8) * 0.06 + (1 - k) * 2.4);
       this.ringMat.opacity = 0.28 + Math.sin(elapsed * 1.4) * 0.1;
       this.ring.scale.setScalar(1 + (1 - k) * 0.5);
@@ -402,7 +411,7 @@ export class Sector {
       this.ringMat.opacity = 0.2 + this.activation * 0.14 + this.hitFlash * 0.35;
 
       if (this.state === 'breached') {
-        this.coreMat.opacity = 0.4 + Math.sin(elapsed * 9) * 0.16 + this.hitFlash * 0.3;
+        this.coreMat.opacity = 0.32 + Math.sin(elapsed * 9) * 0.13 + this.hitFlash * 0.28;
         this.core.scale.setScalar(1 + Math.sin(elapsed * 7) * 0.12);
         // Vent sparks from the exposed core so it visibly reads as damaged.
         if (Math.random() < dt * 16) {

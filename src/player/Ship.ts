@@ -50,6 +50,8 @@ export class Ship {
 
   /** Distance the ship may not pass. The mission script owns this. */
   barrier = Infinity;
+  /** True while the mission is holding the ship short of a locked node. */
+  held = false;
   /** Set while a dossier is open: the craft coasts to a stop and waits. */
   hold = false;
 
@@ -288,6 +290,12 @@ export class Ship {
     // Room ahead caps the speed, so hitting a locked node is a glide to a stop.
     const room = this.barrier - this.distance;
     if (room < 90) target = Math.min(target, Math.max(0, room * 0.9));
+
+    // Held at a locked node: the mission has taken the throttle away, which the
+    // HUD has to say out loud. Otherwise the readout shows 0 m/s next to a lit
+    // BOOST chip while the corridor streaks past, and a visitor with no idea
+    // what a standoff is reads that combination as a broken speedometer.
+    this.held = room < 3 && this.barrier !== Infinity;
 
     this.speed = damp(this.speed, target, this.hold ? 2.6 : 3.2, dt);
     if (this.speed < 0.05) this.speed = 0;

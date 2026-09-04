@@ -5,6 +5,8 @@ import type { EnemyKind } from '../data/missions';
 export interface EnemyVisual {
   group: THREE.Group;
   mats: HullMaterial[];
+  /** The threat marker's own material — driven per frame for spin and pulse. */
+  marker: THREE.ShaderMaterial;
   /** Additive parts whose opacity is driven by hit flash and death fade. */
   glows: THREE.MeshBasicMaterial[];
   /** Sub-objects the update loop spins. */
@@ -158,7 +160,11 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
   // readability win available and it costs one extra quad per enemy.
   const haloMat = keep(
     new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color(color) } },
+      uniforms: {
+        uColor: { value: new THREE.Color(color) },
+        uTime: { value: 0 },
+        uHit: { value: 0 },
+      },
       vertexShader: /* glsl */ `
         varying vec2 vUv;
         void main() {
@@ -175,27 +181,64 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
         uniform vec3 uColor;
         varying vec2 vUv;
         void main() {
-          float r = length(vUv - 0.5) * 2.0;
+          vec2 q = vUv - 0.5;
+          float r = length(q) * 2.0;
           if (r > 1.0) discard;
 
-          // A ring rather than a disc, so the marker frames the hull instead of
-          // hiding it.
-          float ring = smoothstep(0.66, 0.78, r) * smoothstep(0.93, 0.85, r);
+          /*
+           * Four rotating brackets, not a ring.
+           *
+           * Colour alone could not carry this. Threat owns the red-orange
+           * wedge, but two sectors are lit in hot pink and crimson, so against
+           * their architecture a red ring is a red shape among red shapes and
+           * reviewers kept reporting that they could not tell a hostile from
+           * scenery at a glance. Hue was the wrong channel to fight over.
+           *
+           * Nothing else in this world rotates on its own axis at a constant
+           * rate, and no piece of architecture is drawn as a broken bracket. A
+           * marker that spins and is cut into four arcs is therefore
+           * unmistakable at any size, against any backdrop, in any sector,
+           * without spending a colour it does not have to spend.
+           */
+          float ang = atan(q.y, q.x) + uTime * 0.9;
+          float seg = abs(fract(ang / 1.5707963 + 0.5) - 0.5) * 2.0;
+          float bracket = smoothstep(0.30, 0.52, seg);
 
-          // A dark moat immediately outside the ring, and the reason this is
-          // drawn with normal blending rather than additively. Hostiles cluster
-          // around the node, which is the brightest object in the frame; an
-          // additive marker over a bloom source has nothing left to add and
-          // simply dissolves into the glow, so the one layer that has to stay
-          // readable — where the things shooting at you are — was the first to
-          // go. A band that takes light away separates against any background.
-          float moat = smoothstep(0.85, 0.93, r) * smoothstep(1.0, 0.95, r);
+          // The arc the brackets are cut out of.
+          float band = smoothstep(0.60, 0.71, r) * smoothstep(0.90, 0.80, r);
+          float ring = band * bracket;
+
+          // A dark moat outside the brackets, and the reason this is drawn with
+          // normal blending rather than additively. Hostiles cluster around the
+          // node, the brightest object in the frame; an additive marker over a
+          // bloom source has nothing left to add and dissolves into the glow,
+          // so the one layer that must stay readable was the first to go. A
+          // band that takes light away separates against any background.
+          float moat = smoothstep(0.84, 0.93, r) * smoothstep(1.0, 0.95, r);
+
+          // A slow pulse, so a stationary hostile still moves.
+          float pulse = 0.86 + 0.14 * sin(uTime * 3.4);
+
+          /*
+           * The brackets are nearly white, not threat-red.
+           *
+           * Red is the threat identity and the hull keeps it, but a marker has
+           * a different job from an identity: it has to be found against
+           * whatever happens to be behind it, and two of the six sectors are
+           * lit in hot pink and crimson. A red bracket inside a pink shield is
+           * camouflage. Near-white over a dark moat reads against every
+           * backdrop in the game, and no sector owns it — which is exactly why
+           * reticles are neutral in almost everything that ships.
+           */
+          vec3 markCol = mix(uColor, vec3(1.0), 0.5);
 
           // Unpremultiplied: the moat contributes alpha but no colour, so it
-          // reads as a shadow, while the ring carries the threat colour lifted
-          // toward white so it still holds up against a bright core behind it.
-          float a = clamp(ring * 0.92 + moat * 0.55, 0.0, 1.0);
-          vec3 col = (uColor * 1.5 + vec3(0.22)) * ring;
+          // reads as a shadow under the brackets.
+          float a = clamp(ring * 0.95 * pulse + moat * 0.55 + uHit * 0.35, 0.0, 1.0);
+          // Kept under the bloom threshold on purpose. Pushed past it the brackets
+          // stop being brackets and become white blobs: the shape carries the
+          // meaning here, and bloom is what destroys shape.
+          vec3 col = markCol * (0.95 * ring * pulse) + vec3(1.0) * uHit * 0.45;
           gl_FragColor = vec4(col, a);
         }
       `,
@@ -214,6 +257,7 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
   return {
     group,
     mats,
+    marker: haloMat,
     glows,
     spin,
     radius: size * 1.05,
