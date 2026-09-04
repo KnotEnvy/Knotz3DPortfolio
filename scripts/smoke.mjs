@@ -170,6 +170,46 @@ ok(focusLanded.open, 'breaking a node opens the dossier');
 ok(focusLanded.onContinue, 'keyboard focus lands on the dossier Continue button');
 await pk.close();
 
+/*
+ * 5c. No overlay layer may shield the HUD from the mouse.
+ *
+ * #ui stacks full-viewport fixed layers over the canvas, so any one of them
+ * that takes pointer events becomes an invisible shield over everything below
+ * it. That is exactly what .mcard did: an ID selector in base.css beat the
+ * layer's own `pointer-events: none`, so the route spine hovered, focused and
+ * looked entirely alive while every click landed on a transparent div. Two
+ * screenshot reviews missed it because the element that swallows the clicks
+ * cannot be seen. This asserts the outcome, not the rule: a real click on a
+ * route pip has to actually move the mission on.
+ */
+const pp = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await pp.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });
+await pp.waitForTimeout(2200);
+await pp.getByRole('button', { name: /Launch|Resume/ }).click();
+await pp.waitForTimeout(4000);
+
+const shield = await pp.evaluate(() => {
+  const dot = document.querySelector('.spine__dot');
+  const r = dot.getBoundingClientRect();
+  const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  const canvasHit = document.elementFromPoint(window.innerWidth / 2, window.innerHeight * 0.62);
+  return {
+    onDot: hit ? hit.tagName.toLowerCase() + '.' + String(hit.className).split(' ')[0] : 'nothing',
+    reachesDot: !!(hit && hit.closest('.spine__dot')),
+    reachesCanvas: !!(canvasHit && canvasHit.tagName === 'CANVAS'),
+  };
+});
+ok(shield.reachesDot, `a route pip is the top element at its own coordinates (got ${shield.onDot})`);
+ok(shield.reachesCanvas, 'the canvas is reachable through the HUD, so drag-to-fly still works');
+
+const beforeObj = await pp.evaluate(() => window.SIGNAL.debug().objective);
+let clicked = true;
+await pp.click('.spine__dot:nth-child(3)', { timeout: 5000 }).catch(() => { clicked = false; });
+await pp.waitForTimeout(2200);
+const afterObj = await pp.evaluate(() => window.SIGNAL.debug().objective);
+ok(clicked && beforeObj !== afterObj, `clicking a route pip jumps sector ("${beforeObj}" -> "${afterObj}")`);
+await pp.close();
+
 /* 5. Title card must survive a narrow viewport. */
 const p3 = await browser.newPage({ viewport: { width: 320, height: 720 } });
 await p3.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });
@@ -214,6 +254,26 @@ const collide = await m.evaluate(() => {
   return !(a.right < b.left || b.right < a.left || a.bottom < b.top || b.bottom < a.top);
 });
 ok(collide === false, `touch hint does not overlap the shard counter (${collide})`);
+
+/*
+ * The touch fly-band is a wide strip across the lower screen. If it takes
+ * pointer events it eats every drag-to-fly gesture on a phone, leaving the ship
+ * unsteerable while the boost button inside it still works — so the band has to
+ * pass touches through and only its buttons opt back in.
+ */
+const band = await m.evaluate(() => {
+  const tc = document.querySelector('.tc');
+  if (!tc) return 'missing';
+  const r = tc.getBoundingClientRect();
+  const hit = document.elementFromPoint(r.left + r.width / 2, r.top + 8);
+  return {
+    layer: getComputedStyle(tc).pointerEvents,
+    btn: document.querySelector('.tc__btn') ? getComputedStyle(document.querySelector('.tc__btn')).pointerEvents : 'missing',
+    through: !!(hit && hit.tagName === 'CANVAS'),
+  };
+});
+ok(band !== 'missing' && band.through, `a drag in the touch band reaches the canvas (${JSON.stringify(band)})`);
+ok(band !== 'missing' && band.btn === 'auto', 'the boost button still takes taps');
 
 console.log('\n' + (fails.length ? 'FAILURES:\n' + fails.join('\n') : 'ALL CHECKS PASSED'));
 await browser.close();

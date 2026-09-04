@@ -1,12 +1,12 @@
 {
   "$comment": "Handoff record for the next team or agent picking up this repository. Update the `updated` field and the relevant sections whenever the project changes materially.",
   "schemaVersion": 1,
-  "updated": "2026-09-03",
-  "updatedBy": "Claude Opus 5, session_01MLkUHSuBya3phwRdcMnjUf",
+  "updated": "2026-09-04",
+  "updatedBy": "Claude Opus 5 (agent-assisted session), reviewed by Jay W. Snyder",
   "project": {
     "name": "SIGNAL",
     "repository": "KnotEnvy/Knotz3DPortfolio",
-    "description": "The interactive, gamified portfolio and resume of Jay W. Snyder. A hand-written Three.js game engine where six sectors of a neon corridor each hold one chapter of the resume, unlocked by collecting data shards. Ships with an equivalent written brief for accessibility, SEO and visitors in a hurry.",
+    "description": "The interactive, gamified portfolio and resume of Jay W. Snyder. A hand-written Three.js rail shooter: six sectors down a neon corridor, each one a chapter of the resume sealed behind an encryption node. Fly the corridor, clear the resistance, break the node, read the dossier it was holding, continue. Ships with an equivalent written brief for accessibility, SEO, phones and visitors in a hurry.",
     "audience": "Business owners and operators evaluating whether to hire Jay to build AI systems for them. Secondary: recruiters and engineering leads.",
     "goal": "Convert. The site is the proof that Jay builds ambitious interactive software; the written brief is the escape hatch for anyone who just wants the facts."
   },
@@ -23,12 +23,13 @@
     ]
   },
   "status": {
-    "phase": "live and verified on both hosts",
+    "phase": "v3 rebuild on a feature branch, reviewed and iterated; not yet merged or deployed",
     "mainBranch": "main",
-    "featureBranch": "claude/gamified-3d-portfolio-r7vfyi",
-    "featureBranchMerged": true,
-    "featureBranchSafeToDelete": true,
-    "howToCheckDeployIsCurrent": "Compare the hashed bundle name in the <script> tag of https://knotz3d-portfolio.vercel.app/ against `npm run build` output locally. If they match, production is serving current main. Repeat for the GitHub Pages mirror."
+    "featureBranch": "claude/3d-portfolio-polish-8dxhjx",
+    "featureBranchMerged": false,
+    "featureBranchSafeToDelete": false,
+    "note": "main still serves the v2 free-flight build. Everything described below is on the feature branch. Deploy verification in the deployment section refers to v2 and must be redone after this branch merges.",
+    "howToCheckDeployIsCurrent": "Compare the hashed bundle name in the <script> tag of the live site against `npm run build` output locally. If they match, production is serving that commit. Repeat for the GitHub Pages mirror, which does NOT redeploy automatically — it needs `npm run deploy`."
   },
   "deployment": {
     "intendedHost": "Vercel",
@@ -84,10 +85,7 @@
       "react-vertical-timeline-component"
     ],
     "bundleSize": {
-      "appJs": "115.8 kB raw / 38.6 kB gzip",
-      "threeJs": "532.3 kB raw / 135.8 kB gzip",
-      "css": "25.8 kB raw / 5.7 kB gzip",
-      "note": "Three is deliberately split into its own chunk via rollupOptions.manualChunks so app changes do not invalidate it."
+      "note": "Run `npm run build` for current figures. Three is split into its own chunk via rollupOptions.manualChunks so app changes do not invalidate it, and SMAAPass is a lazy dynamic import because its lookup textures are ~38 kB gzipped and only the top quality tier uses it."
     }
   },
   "commands": {
@@ -96,31 +94,38 @@
     "typecheck": "npm run typecheck",
     "build": "npm run build",
     "preview": "npm run preview",
+    "smoke": "npm run smoke",
+    "smokeServe": "npm run smoke:serve",
     "deployGithubPages": "npm run deploy",
-    "note": "There is no test suite. `npm run build` runs `tsc --noEmit` first, so a type error fails the build. Verification during the rebuild was done with Playwright driving the production preview; those scripts were scratch files and were not committed."
+    "note": "`npm run build` runs `tsc --noEmit` first, so a type error fails the build. `npm run smoke` drives the built site in headless Chromium; serve dist first with `npm run smoke:serve`. Set SKIP_PASSIVE=1 to skip the slow passive-visitor check, and CHROMIUM_PATH if Playwright cannot find a browser."
   },
   "architecture": {
     "entryPoint": "src/main.ts",
-    "loop": "Fixed-step simulation at 60 Hz with an accumulator and a 5-step cap, decoupled from rendering. Frame rate never changes flight feel.",
+    "loop": "Fixed-step simulation at 60 Hz with an accumulator and a 5-step cap, decoupled from rendering. Frame rate never changes flight feel, weapon cadence or collision.",
     "directories": {
       "src/core": "Engine (renderer, post chain, adaptive quality tiers), Input, Audio, Events bus, Save, Math helpers",
-      "src/shaders": "Film grain / vignette / chromatic aberration post pass",
-      "src/world": "World orchestration, Sector, Landmark geometry, Corridor (gates + debris), Grid, Starfield, Label sprites",
-      "src/player": "Arcade flight model and spring chase camera",
-      "src/game": "GameState: XP, ranks, shards, achievements",
-      "src/ui": "HUD, Codex dossier, Terminal, Toasts, Boot, TopBar, Brief, Complete",
+      "src/shaders": "Fresnel hull material with in-shader fog and procedural panel lines; the composite post pass",
+      "src/fx": "Pooled GPU particles, shockwave/flash impacts, camera-facing ribbon trails",
+      "src/world": "Route (the flight spline), Sector nodes, Landmarks, Corridor gates, Causeway floor, Environment props, Nebula, Starfield, Labels",
+      "src/player": "Rail flight model and the chase camera rig",
+      "src/game": "GameState (XP, ranks, shards, achievements), Combat, Pickups, Mission director",
+      "src/ui": "HUD, Codex dossier, Terminal, Toasts, Boot, TopBar, Brief, MissionCard, Overlay, TouchControls, Complete",
       "src/data": "ALL CONTENT. Nothing user-visible is hard-coded elsewhere.",
-      "src/styles": "Design tokens plus per-component CSS"
+      "src/styles": "Design tokens plus per-component CSS",
+      "scripts": "smoke.mjs — behavioural regression checks, one per bug that actually shipped"
     },
     "notableTechniques": [
-      "Adaptive quality governor: sustained frame-time drops step pixel ratio, bloom, grain and star count down a tier instead of stuttering.",
-      "Procedural WebAudio for the drone, collection chimes and decrypt fanfare. Zero audio files ship.",
-      "Derivative-antialiased infinite grid shader; GPU point-cloud starfield with a seeded PRNG so the sky is identical every visit.",
-      "Corridor gates fade by view depth via an onBeforeCompile shader injection, so a gate sweeping past the camera never blows out to a white bar.",
-      "Shard magnetism: shards break orbit and chase the ship inside 30 units, so collecting is 'fly roughly there' rather than a precision test.",
-      "Landmarks are offset to the side of the flight line, because the corridor spline runs through each sector centre."
+      "The route is an arc-length-parameterised spline. Forward motion is automatic and monotonic; steering only moves the ship inside a tube around the centreline, so a visitor cannot get lost or fly out of the content.",
+      "The mission director runs the same five beats six times — travel, waves, node, dossier, continue — so there is exactly one objective at any moment and the HUD always names it.",
+      "Stall assist: if a fight stops progressing the interface escalates, first an instruction, then automatic fire, then an explicit offer to open the dossier anyway. Nobody is locked out of a resume for being bad at a game.",
+      "The player cannot lose. Hits cost hull integrity, which regenerates.",
+      "Fresnel hull shader with FogExp2 implemented in-shader (custom ShaderMaterials do not get three fog for free) and triplanar procedural panel lines.",
+      "Causeway: a ribbon swept along the route spline, ruled with a grid, giving the corridor a floor and a vanishing point.",
+      "Adaptive quality governor steps pixel ratio, bloom, particle budget and prop density down a tier rather than stuttering. SMAA on the top tier is lazily imported.",
+      "Composite post pass driven by gameplay: boost streaks, damage vignette, explosion punch.",
+      "Procedural WebAudio throughout, including filtered noise bursts for explosions. Zero audio files ship."
     ],
-    "debugging": "`window.SIGNAL.debug()` in the browser console returns ship position, yaw, speed, progress and per-sector shard distances."
+    "debugging": "`window.SIGNAL.debug()` returns distance along the route, offset, speed, barrier, hull, mission phase, objective, hostiles, particle count, quality tier and per-node state. `window.SIGNAL.goto(<sectorId>)` jumps to a sector; `window.SIGNAL.forceDossier()` opens the current dossier without fighting for it. `?tier=0|1|2` pins the quality tier."
   },
   "content": {
     "singleSourceOfTruth": true,
@@ -130,7 +135,7 @@
       "src/data/content.ts": "Ventures, projects, career timeline, education, services, skill groups",
       "src/data/sectors.ts": "How that content is laid out across the six sectors: position, colour, shard count, blocks, locked bonus block"
     },
-    "howToAddAProject": "Add an entry to `projects` in src/data/content.ts, then reference its id from a sector's `cards` block in src/data/sectors.ts. The written brief picks it up automatically.",
+    "howToAddAProject": "Add an entry to `projects` in src/data/content.ts, then reference its id from a sector's `cards` block in src/data/sectors.ts. The written brief picks it up automatically. Encounter pacing lives separately in src/data/missions.ts.",
     "sectors": [
       {
         "id": "origin",
@@ -235,20 +240,37 @@
   ],
   "openItems": [
     {
-      "id": "tests",
-      "priority": "low",
-      "item": "No automated tests. Playwright covers the other Knotz repos well; a smoke suite (boot, launch, warp, brief toggle, shard pickup) would protect the engine from regressions."
+      "id": "deploy-v3",
+      "priority": "high",
+      "item": "This branch has not been merged or deployed. After merging, redeploy Vercel (automatic on push to main) AND GitHub Pages (`npm run deploy`, which is NOT automatic), then re-verify both against a local build."
+    },
+    {
+      "id": "handoff-visibility",
+      "priority": "medium",
+      "item": "This file is committed to a public repository and names an agent as author of record, on a site whose central claim is that Jay wrote the engine. Decide whether it stays public, has its attribution trimmed, or moves out of the published repo. Flagged during review; the call is the owner’s."
+    },
+    {
+      "id": "art-direction",
+      "priority": "medium",
+      "item": "Reviewers consistently rate the look as a well-executed take on a familiar neon/synthwave idiom rather than something visually novel. The remaining gap to a top-tier score is art direction, not defects: a distinctive material or lighting idea, or a less-trodden palette."
     },
     {
       "id": "og-image-refresh",
       "priority": "low",
-      "item": "public/og.jpg was rendered with fallback system fonts because Google Fonts was unreachable in the build environment. Re-rendering it with Space Grotesk loaded would tighten the typography."
+      "item": "public/og.jpg was rendered with fallback system fonts because Google Fonts was unreachable in the build environment, and it still shows the v2 look. Re-render it from the v3 build with Space Grotesk loaded."
+    },
+    {
+      "id": "unit-tests",
+      "priority": "low",
+      "item": "GameState (XP, ranks, achievement conditions) has no unit coverage. A mis-awarded achievement shipped and was caught by review rather than by a test."
     }
   ],
   "knownRisks": [
     "Both hosts must be republished together or they drift. Vercel redeploys automatically on push to main; GitHub Pages does not, and needs `npm run deploy`. If Pages is left stale it serves an old resume from an indexed URL.",
     "Fonts load from Google Fonts. If they fail, the design falls back to system stacks and still reads correctly, but tracking and weights shift.",
-    "Progress is stored in localStorage under the key `signal.save.v2`. Bumping the shape means bumping the version and the `v` check in src/core/Save.ts, or returning visitors get a blank run."
+    "Progress is stored in localStorage under the key `signal.save.v2`. Fields added since are filled in from defaults on load, so old saves still work; bumping the shape means bumping the version and the `v` check in src/core/Save.ts.",
+    "Custom ShaderMaterials do not receive three’s fog, lights or tone mapping automatically. Anything new that should sit in the same atmosphere has to implement fog itself, as src/shaders/hull.ts does.",
+    "Several bugs in this rebuild were of one shape: a factor in an alpha or intensity product silently going to zero, leaving an element rendering as nothing while looking correct in code. When something is invisible, check for a zeroed term before doubting the geometry."
   ],
   "conventions": {
     "branching": "Feature work on `claude/<topic>` branches, merged to `main` with --no-ff.",
@@ -256,6 +278,11 @@
     "codeStyle": "Match the surrounding file. Comments explain why, not what. Strict TypeScript; the build fails on unused locals and parameters."
   },
   "resolvedItems": [
+    {
+      "id": "tests",
+      "resolved": "2026-09-04",
+      "note": "scripts/smoke.mjs now drives the built site in headless Chromium. Was open item \"tests\"."
+    },
     {
       "id": "gh-pages",
       "resolved": "2026-09-03",
@@ -281,5 +308,20 @@
       "resolved": "2026-09-03",
       "note": "Dazzle Divas 2018 confirmed. SkyRun set to 'Aug 2026 — Present' in both the ventures card and the career timeline."
     }
-  ]
+  ],
+  "testing": {
+    "suite": "scripts/smoke.mjs",
+    "philosophy": "Not coverage. Every check is a bug that actually shipped and that a type-checker, a linter and a screenshot all failed to notice. Add to it the same way: when something breaks in a browser, write the check that would have caught it.",
+    "covers": [
+      "A passive visitor who never touches the controls still reaches a dossier",
+      "Alt-tab does not permanently freeze the run",
+      "The route progress spine keeps all six pips as sectors are cleared",
+      "Focus cannot escape the pause dialog, tabbing both directions",
+      "The ventures award is not granted merely for setting off toward the sector",
+      "Breaking a node hands keyboard focus to the dossier Continue button",
+      "The title card fits a 320px viewport",
+      "The written brief keeps its section nav and contact jump on a phone",
+      "The touch hint does not overlap the shard counter"
+    ]
+  }
 }

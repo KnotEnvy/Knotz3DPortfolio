@@ -60,18 +60,33 @@ html.brief-mode body {
   pointer-events: none;
 }
 
+/*
+ * #ui is a stack of fixed, full-viewport layers over the canvas, so every layer
+ * is a potential pointer sink. This used to be an opt-out list: everything got
+ * `pointer-events: auto` and the full-bleed layers were exempted by name. That
+ * fails silently and catastrophically — an ID selector beats the layer's own
+ * `.mcard { pointer-events: none }`, so a forgotten name puts an invisible
+ * full-screen shield over the whole HUD and every button under it goes dead
+ * while still hovering, focusing and looking perfectly alive. It cost us the
+ * route spine and the touch fly-band.
+ *
+ * So it is now an opt-in list: layers pass pointers through unless they are
+ * named here. A layer left off this list is visibly, immediately broken rather
+ * than quietly breaking everything beneath it. Interactive leaves inside a
+ * pass-through layer opt themselves back in (.hud__btn, .tc__btn, .spine__dot).
+ */
 #ui > * {
-  pointer-events: auto;
+  pointer-events: none;
 }
 
-/*
- * The HUD and the toast stack are full-viewport overlays. Without this they win
- * on specificity against the rule above and swallow every pointer event before
- * it reaches the canvas — which silently kills drag-to-fly on touch devices.
- */
-#ui .hud,
-#ui .toasts {
-  pointer-events: none;
+#ui > .codex,
+#ui > .terminal,
+#ui > .topbar,
+#ui > .ov,
+#ui > .boot,
+#ui > .finale,
+#ui > .sr-only {
+  pointer-events: auto;
 }
 
 a {

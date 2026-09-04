@@ -393,11 +393,17 @@ export class Director {
         this.openDossier(ship);
       } else {
         this.objectiveTitle = node.shielded ? `Collapse the ${this.mission.nodeName} shield` : 'Destroy the exposed core';
-        const bar = node.shielded ? `Shield ${Math.round(node.shieldPct * 100)}%` : `Core ${Math.round(node.corePct * 100)}%`;
-        // Hostiles do not stop shooting because the boss arrived. Saying so
-        // keeps the player's threat model honest.
+        // The node panel sits directly under this line and already carries the
+        // shield/core bar and its phase label, so echoing the percentage here
+        // only doubled the busiest frame in the product. This line keeps the one
+        // thing the bar cannot say: the wave has not stopped shooting at you.
         const left = this.combat.aliveCount;
-        this.objectiveDetail = left > 0 ? `${bar} · ${left} hostile${left === 1 ? '' : 's'} still active` : bar;
+        this.objectiveDetail =
+          left > 0
+            ? `${left} hostile${left === 1 ? '' : 's'} still shooting`
+            : node.shielded
+              ? 'Keep firing — the shield is holding'
+              : 'Core exposed — finish it';
       }
     }
 

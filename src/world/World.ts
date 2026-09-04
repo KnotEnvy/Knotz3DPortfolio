@@ -134,8 +134,10 @@ export class World {
     // The sky takes a heavily dimmed sector accent for its clouds and a slightly
     // hotter one for the filaments. Both are scaled well down: the backdrop has
     // to sit *below* the bloom threshold or it drags the whole frame with it.
-    this.cloud.copy(accent).multiplyScalar(0.34);
-    this.hotCloud.copy(accent).lerp(WHITE, 0.35).multiplyScalar(0.5);
+    // Scaled so the brightest cloud sits just under the bloom threshold: the
+    // nebula is depth, not a light source.
+    this.cloud.copy(accent).multiplyScalar(0.5);
+    this.hotCloud.copy(accent).lerp(WHITE, 0.4).multiplyScalar(0.72);
     this.nebula.setPalette(this.cloud.getHex(), this.hotCloud.getHex(), deep.getHex());
     this.nebula.update(elapsed, dt);
 

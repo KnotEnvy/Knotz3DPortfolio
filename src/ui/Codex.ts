@@ -106,6 +106,8 @@ export class Codex {
     bus.on('sector:decrypted', ({ id }) => {
       if (this.current?.id === id) this.render(this.current);
     });
+
+    this.root.addEventListener('keydown', (e) => this.onKeydown(e));
   }
 
   get isOpen(): boolean {
@@ -136,6 +138,16 @@ export class Codex {
     // on an element that is not yet visible fails silently — which is how this
     // shipped looking correct and doing nothing, and why a fixed short retry
     // window was not enough either.
+    // While the ship is held for reading, the panel really is modal: say so, so
+    // that assistive tech announces it as a dialog rather than as a sidebar the
+    // reader is free to wander out of.
+    if (gating) {
+      this.root.setAttribute('role', 'dialog');
+      this.root.setAttribute('aria-modal', 'true');
+    } else {
+      this.root.setAttribute('role', 'complementary');
+      this.root.removeAttribute('aria-modal');
+    }
     this.focusWhenReady(gating ? this.continueBtn : this.body);
     bus.emit('codex:open', { id });
   }
@@ -157,6 +169,41 @@ export class Codex {
 
   get isGating(): boolean {
     return this.gating;
+  }
+
+  /**
+   * Keep Tab inside the dossier while it is gating.
+   *
+   * The pause dialog earns its trap with `inert` on everything else, but the
+   * dossier cannot: the pause panel can be opened on top of it, and two layers
+   * both inerting each other's subtrees is how you end up with a dialog nobody
+   * can reach. Wrapping Tab at this panel's own boundary is self-contained and
+   * cannot deadlock with anything.
+   *
+   * Only while gating. A dossier opened from the sector list is a sidebar the
+   * reader is genuinely free to tab out of, and trapping that would be wrong.
+   */
+  private onKeydown(e: KeyboardEvent): void {
+    if (e.key !== 'Tab' || !this.gating) return;
+
+    const items = Array.from(
+      this.root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((n) => n.getClientRects().length > 0 && !n.closest('[hidden]'));
+    if (!items.length) return;
+
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+
+    if (e.shiftKey && (active === first || !this.root.contains(active))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (active === last || !this.root.contains(active))) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   /**

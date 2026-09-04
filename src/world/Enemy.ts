@@ -179,10 +179,13 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
           if (r > 1.0) discard;
           // A soft ring rather than a disc, so it frames the hull instead of
           // hiding it.
-          float ring = smoothstep(0.55, 0.86, r) * smoothstep(1.0, 0.88, r);
-          float core = pow(1.0 - r, 5.0) * 0.35;
-          float a = ring * 0.7 + core;
-          gl_FragColor = vec4(uColor * (ring * 2.2 + core * 3.0), a);
+          // A tighter, dimmer ring than the first pass. It has to find a
+          // hostile against a starfield, not compete with the node core it is
+          // often drawn in front of.
+          float ring = smoothstep(0.68, 0.9, r) * smoothstep(1.0, 0.92, r);
+          float core = pow(1.0 - r, 6.0) * 0.2;
+          float a = ring * 0.6 + core;
+          gl_FragColor = vec4(uColor * (ring * 1.5 + core * 1.8), a);
         }
       `,
       transparent: true,

@@ -621,8 +621,13 @@
   font-weight: 600;
 }
 
+/*
+ * Both ends of this transition are written as color-mix(). Crossing between a
+ * color-mix() result and a bare hex makes Chromium interpolate through oklab(),
+ * and out-of-gamut midpoints can clip to a lurid wrong hue mid-hover.
+ */
 .cx-link--live:hover {
-  background: var(--live);
-  border-color: var(--live);
+  background: color-mix(in srgb, var(--live) 100%, transparent);
+  border-color: color-mix(in srgb, var(--live) 100%, transparent);
   color: #04150c;
 }

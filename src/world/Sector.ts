@@ -78,11 +78,15 @@ const SHIELD_FRAG = /* glsl */ `
     // reading as a shield and becomes an opaque glowing ball that hides the
     // thing the visitor came to look at. Impact ripples and the hit flash are
     // the only parts allowed to go genuinely bright.
-    float a = (0.025 + cells * 0.07 + fres * 0.26) * uHealth;
-    a += ring * 0.7 + uFlash * 0.3;
+    float a = (0.02 + cells * 0.06 + fres * 0.2) * uHealth;
+    a += ring * 0.6 + uFlash * 0.26;
 
-    vec3 col = uColor * (0.28 + cells * 0.25 + fres * 0.8 + ring * 2.6 + uFlash * 1.6);
-    col += vec3(1.0) * ring * 1.2;
+    // Held well down. The Fresnel term peaks at the silhouette, which is
+    // exactly where an additive sphere overlaps the core behind it — pushed
+    // any harder the shield stops reading as a shell and becomes a white smear
+    // with no geometry left in it, taking the boss with it.
+    vec3 col = uColor * (0.2 + cells * 0.2 + fres * 0.45 + ring * 2.2 + uFlash * 1.3);
+    col += vec3(1.0) * ring * 0.9;
     col *= 0.7 + breathe * 0.3;
 
     gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
@@ -383,7 +387,7 @@ export class Sector {
       this.shield.visible = false;
       this.cage.visible = false;
       this.core.visible = true;
-      this.coreMat.opacity = 0.35 + 0.55 * k;
+      this.coreMat.opacity = 0.3 + 0.4 * k;
       this.core.scale.setScalar(1 + Math.sin(elapsed * 1.8) * 0.06 + (1 - k) * 2.4);
       this.ringMat.opacity = 0.28 + Math.sin(elapsed * 1.4) * 0.1;
       this.ring.scale.setScalar(1 + (1 - k) * 0.5);
@@ -398,7 +402,7 @@ export class Sector {
       this.ringMat.opacity = 0.2 + this.activation * 0.14 + this.hitFlash * 0.35;
 
       if (this.state === 'breached') {
-        this.coreMat.opacity = 0.5 + Math.sin(elapsed * 9) * 0.2 + this.hitFlash * 0.4;
+        this.coreMat.opacity = 0.4 + Math.sin(elapsed * 9) * 0.16 + this.hitFlash * 0.3;
         this.core.scale.setScalar(1 + Math.sin(elapsed * 7) * 0.12);
         // Vent sparks from the exposed core so it visibly reads as damaged.
         if (Math.random() < dt * 16) {

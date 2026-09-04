@@ -121,8 +121,8 @@ const FRAG = /* glsl */ `
 
       // Recessed seams read as shadow; the wider joins pick up a little of the
       // accent, as though light is leaking out of the structure.
-      col *= 1.0 - plate * 0.5;
-      col += uColor * major * 0.16;
+      col *= 1.0 - plate * 0.62;
+      col += uColor * major * 0.28;
     }
 
     col += uColor * fres * uRim * 1.9;

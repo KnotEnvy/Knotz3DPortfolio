@@ -74,20 +74,36 @@ const FRAG = /* glsl */ `
     // instead of the cotton-wool look plain fbm gives you.
     float wisp = fbm(p * 2.6 + vec3(base * 2.4));
 
-    // Aggressive thresholds. An earlier pass had these low enough that cloud
-    // covered most of the sky, and since the sky is behind *everything*, the
-    // bloom pass then lifted the entire frame into a pale wash and every neon
-    // edge in the scene disappeared into it. A nebula has to be mostly empty
-    // black to work as a backdrop — the drama is in the filaments, not the fill.
-    float cloud = pow(clamp(base * 1.2 + wisp * 0.4 - 0.62, 0.0, 1.0), 2.4) * uDensity;
-    float hot = pow(clamp(wisp * 1.5 - 0.82, 0.0, 1.0), 3.0);
+    /*
+     * Thresholds are the whole ballgame here, and this shader has now been
+     * wrong in both directions.
+     *
+     * Too generous and cloud covers the sky; since the sky sits behind
+     * everything, bloom then lifts the entire frame into a pale wash and every
+     * neon edge disappears into it. Too mean — which is what shipped after that
+     * correction — and the fbm never clears the threshold at all, so an entire
+     * noise field costs its shader time and renders as flat black. A reviewer
+     * described the backdrop as "just a static starfield", which was a fair
+     * description of a nebula that was not being drawn.
+     *
+     * These values are tuned to sit *under* the bloom threshold at their
+     * brightest, so the nebula reads as depth rather than as a light source.
+     */
+    float cloud = pow(clamp(base * 1.1 + wisp * 0.4 - 0.52, 0.0, 1.0), 2.0) * uDensity;
+    float hot = pow(clamp(wisp * 1.6 - 0.74, 0.0, 1.0), 2.6);
+
+    // Ridged filaments: folding the noise about its midpoint turns soft blobs
+    // into strands, which is what actually reads as a nebula rather than fog.
+    float ridge = 1.0 - abs(wisp * 2.0 - 1.0);
+    ridge = pow(clamp(ridge, 0.0, 1.0), 3.5) * cloud;
 
     // A horizon-ish gradient gives the corridor an implied up.
     float band = smoothstep(-0.8, 0.6, d.y);
 
     vec3 col = uDeep * (0.7 + band * 0.5);
-    col += uColorA * cloud * 0.5;
-    col += uColorB * hot * 0.55;
+    col += uColorA * cloud * 0.85;
+    col += uColorB * hot * 0.7;
+    col += uColorB * ridge * 0.45;
 
     // Distant unresolved star haze, dense enough to imply depth. Kept under the
     // bloom threshold so it stays as pinpricks rather than smearing.
