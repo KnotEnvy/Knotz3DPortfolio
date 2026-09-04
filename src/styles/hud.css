@@ -1478,11 +1478,16 @@
   top: calc(var(--safe-t) + 17rem);
 }
 
+/* And stands down entirely behind the pause dialog. */
+.ov-open .toasts {
+  opacity: 0;
+}
+
 .toasts {
   position: fixed;
   right: calc(var(--safe-r) + var(--hud-gap));
   top: calc(var(--safe-t) + 4.4rem);
-  transition: top 0.4s var(--ease);
+  transition: top 0.4s var(--ease), opacity 0.2s var(--ease);
   z-index: 16;
   display: grid;
   gap: 0.45rem;

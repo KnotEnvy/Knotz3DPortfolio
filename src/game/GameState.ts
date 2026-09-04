@@ -53,6 +53,14 @@ export class GameState {
 
   constructor() {
     this.data = save.load();
+
+    // Awarded for actually opening the dossier. It used to fire from visit(),
+    // which the mission director calls the moment the player starts flying
+    // toward the sector — so "Read the ventures dossier" could be earned
+    // without reading it, or even arriving.
+    bus.on('codex:open', ({ id }) => {
+      if (id === 'ventures') this.unlock('ventures');
+    });
   }
 
   get xp(): number {
@@ -167,7 +175,6 @@ export class GameState {
     this.data.visited.push(id);
     this.addXp(XP_PER_SECTOR);
     this.unlock('first-contact');
-    if (id === 'ventures') this.unlock('ventures');
     if (this.data.visited.length >= sectors.length) this.unlock('all-sectors');
     this.persist();
   }

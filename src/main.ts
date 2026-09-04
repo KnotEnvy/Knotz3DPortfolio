@@ -79,6 +79,7 @@ class App {
   private rafId = 0;
   private hintTimer = 0;
   private hintRetired = false;
+  private hintMoved = false;
   private accent = new THREE.Color(0x4de1c1);
   /** Hull integrity at the moment the current node was armed, for 'Unshaken'. */
   private hullAtNode = 1;
@@ -513,11 +514,20 @@ class App {
       }
       if (steps === MAX_STEPS) this.accumulator = 0;
 
-      if (this.input.moved && !this.hintRetired) {
+      // Retire the control hints on evidence rather than on a clock. A player
+      // who has fired a shot has read them; leaving them up adds a line of
+      // text to a frame that already carries an objective, a boss bar, a hull
+      // gauge and a shard count, at the exact moment a non-gamer is learning
+      // to aim.
+      if (!this.hintRetired && (this.combat.shotsFired > 0 || this.director.autoFire)) {
         this.hintRetired = true;
         window.clearTimeout(this.hintTimer);
-        this.hintTimer = window.setTimeout(() => this.hud.fadeHint(), 7000);
+        this.hud.fadeHint();
         this.touch?.retireHint();
+      } else if (this.input.moved && !this.hintMoved) {
+        this.hintMoved = true;
+        window.clearTimeout(this.hintTimer);
+        this.hintTimer = window.setTimeout(() => this.hud.fadeHint(), 9000);
       }
     } else {
       // Idle drift behind the boot screen and while paused: the scene breathes,
@@ -571,6 +581,7 @@ class App {
       particles: this.particles.count,
       tier: this.engine.tier.name,
       collected: this.state.collected,
+      achievements: this.state.achievements.slice(),
       nodes: this.world.sectors.map((s) => ({ id: s.def.id, state: s.state, hp: +s.hp.toFixed(1) })),
     };
   }
@@ -578,6 +589,15 @@ class App {
   /** Jump to a sector from the console. */
   goto(id: SectorId): void {
     this.warpTo(id);
+  }
+
+  /**
+   * Open the current sector's dossier without fighting for it — the same path
+   * the stall assist offers. Exposed for the smoke suite and for anyone who
+   * would rather read than fly.
+   */
+  forceDossier(): void {
+    this.director.skipToDossier(this.ship);
   }
 
   dispose(): void {

@@ -95,21 +95,80 @@ ok(
   `a cleared pip stays in the spine (position=${spine.position}, opacity=${spine.opacity})`,
 );
 
-/* 4. Focus must not escape the pause dialog. */
+/*
+ * 4. Focus must not escape the pause dialog.
+ *
+ * Tabbed well past the number of focusable controls in the panel, and both
+ * ways. The original version pressed Tab fourteen times forward only, which was
+ * enough to pass roughly two runs in three while the skip link — a child of
+ * body, outside the inerted subtree — was still reachable. A trap that holds
+ * most of the time is not a trap, and a regression test that agrees with it
+ * most of the time is worse than none.
+ */
 await p2.keyboard.press('h');
 await p2.waitForTimeout(800);
-let escaped = false;
-for (let i = 0; i < 14; i++) {
+let escapedTo = null;
+for (let i = 0; i < 40 && !escapedTo; i++) {
   await p2.keyboard.press('Tab');
-  const inside = await p2.evaluate(() => !!document.activeElement?.closest('.ov'));
-  if (!inside) {
-    escaped = true;
-    break;
-  }
+  escapedTo = await p2.evaluate(() => {
+    const a = document.activeElement;
+    if (!a || a.closest('.ov')) return null;
+    return a.tagName.toLowerCase() + (a.className ? '.' + String(a.className).split(' ')[0] : '');
+  });
 }
-ok(!escaped, 'focus stays inside the pause dialog');
+for (let i = 0; i < 40 && !escapedTo; i++) {
+  await p2.keyboard.press('Shift+Tab');
+  escapedTo = await p2.evaluate(() => {
+    const a = document.activeElement;
+    if (!a || a.closest('.ov')) return null;
+    return a.tagName.toLowerCase() + (a.className ? '.' + String(a.className).split(' ')[0] : '');
+  });
+}
+ok(!escapedTo, `focus stays inside the pause dialog${escapedTo ? ` (escaped to ${escapedTo})` : ''}`);
 await p2.keyboard.press('Escape');
+await p2.waitForTimeout(400);
+
+/*
+ * 5. "Read the ventures dossier" must require reading the ventures dossier.
+ *
+ * It used to be awarded from visit(), which the director calls the moment the
+ * player starts flying toward the sector.
+ */
+const award = await p2.evaluate(async () => {
+  const app = window.SIGNAL;
+  app.goto('ventures');
+  await new Promise((r) => setTimeout(r, 1200));
+  const onArrival = app.debug().achievements ?? [];
+  return { travelling: onArrival.includes('ventures') };
+});
+ok(!award.travelling, 'the ventures award is not granted merely for setting off toward it');
 await p2.close();
+
+/*
+ * 5b. Breaking a node must hand keyboard focus to the dossier's Continue
+ * button, or a keyboard-only visitor is given a panel they cannot reach.
+ */
+const pk = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await pk.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });
+await pk.waitForTimeout(2200);
+await pk.getByRole('button', { name: /Launch|Resume/ }).click();
+await pk.waitForTimeout(1500);
+const focusLanded = await pk.evaluate(async () => {
+  const app = window.SIGNAL;
+  app.goto('origin');
+  await new Promise((r) => setTimeout(r, 900));
+  // Open the dossier the way the mission director does when a node breaks.
+  app.forceDossier();
+  await new Promise((r) => setTimeout(r, 1800));
+  const a = document.activeElement;
+  return {
+    open: !!document.querySelector('.codex.on'),
+    onContinue: !!(a && a.classList.contains('codex__continue')),
+  };
+});
+ok(focusLanded.open, 'breaking a node opens the dossier');
+ok(focusLanded.onContinue, 'keyboard focus lands on the dossier Continue button');
+await pk.close();
 
 /* 5. Title card must survive a narrow viewport. */
 const p3 = await browser.newPage({ viewport: { width: 320, height: 720 } });

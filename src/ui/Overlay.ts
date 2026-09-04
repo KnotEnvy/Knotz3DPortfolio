@@ -276,6 +276,7 @@ export class Overlay {
     this.lastFocus = document.activeElement;
     this.root.hidden = false;
     this.setSiblingsInert(true);
+    document.body.classList.add('ov-open');
     this.select(tab);
     requestAnimationFrame(() => {
       this.root.classList.add('on');
@@ -289,6 +290,7 @@ export class Overlay {
     this.root.classList.remove('on');
     this.root.hidden = true;
     this.setSiblingsInert(false);
+    document.body.classList.remove('ov-open');
     this.handlers.resume();
     if (this.lastFocus instanceof HTMLElement) this.lastFocus.focus();
   }
@@ -299,11 +301,23 @@ export class Overlay {
    * The panel declares `aria-modal`, and without this that declaration is
    * simply untrue: six tabs walked out of the dialog, through the document and
    * into the paused game's HUD and toolbar behind it.
+   *
+   * This walks the *document*, not just the overlay's own siblings. An earlier
+   * version only inerted siblings inside #ui, which left the skip link — a
+   * direct child of body, and deliberately the first tab stop on the page —
+   * reachable from inside the dialog. That made the trap intermittent: it held
+   * whenever the keydown handler saw the boundary first and leaked whenever
+   * focus happened to land on the skip link, which is precisely the kind of
+   * once-in-three-runs failure that is worse than a consistent one.
    */
   private setSiblingsInert(on: boolean): void {
-    const parent = this.root.parentElement;
-    if (!parent) return;
-    for (const child of Array.from(parent.children)) {
+    const ui = this.root.parentElement;
+    for (const child of Array.from(document.body.children)) {
+      if (child === ui) continue;
+      (child as HTMLElement).inert = on;
+    }
+    if (!ui) return;
+    for (const child of Array.from(ui.children)) {
       if (child === this.root) continue;
       (child as HTMLElement).inert = on;
     }

@@ -111,6 +111,11 @@ export class Boot {
       if (child === this.root) continue;
       (child as HTMLElement).inert = on;
     }
+    // The canvas is a sibling of #ui, not of the boot screen. The skip link is
+    // deliberately left reachable here: jumping to the written brief from the
+    // title card is exactly what it is for.
+    const stage = document.getElementById('stage');
+    if (stage) stage.inert = on;
   }
 
   hide(): void {

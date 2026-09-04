@@ -52,6 +52,18 @@ export class MissionCard {
     total: number;
     color: number;
   }): void {
+    // Wait for an outgoing dossier to finish leaving. Pressing Continue starts
+    // the panel's slide-out and advances the director in the same frame, so
+    // without this the next sector's title faded in behind a dossier that was
+    // still fully on screen — which self-resolves in under a second and looks
+    // like a mistake for every frame of it.
+    const leaving = document.querySelector('.codex.on');
+    if (leaving) {
+      window.clearTimeout(this.timer);
+      this.timer = window.setTimeout(() => this.show(m), 620);
+      return;
+    }
+
     this.setAccent(m.color);
     this.code.textContent = m.code;
     this.name.textContent = m.name;

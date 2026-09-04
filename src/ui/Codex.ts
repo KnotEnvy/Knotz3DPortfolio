@@ -24,6 +24,7 @@ export class Codex {
   private lastFocus: Element | null = null;
   /** True when this dossier was opened by breaking a node, so flight is held. */
   private gating = false;
+  private focusTimer = 0;
 
   constructor(parent: HTMLElement, private state: GameState, private onContinue: () => void) {
     this.eyebrow = el('div', { class: 'codex__eyebrow' });
@@ -129,12 +130,19 @@ export class Codex {
     this.syncScroll();
     // Move focus into the panel. Without this a keyboard user is handed a
     // scrollable region they have no way to reach.
-    requestAnimationFrame(() => (gating ? this.continueBtn : this.body).focus());
+    //
+    // Deferred until the panel has actually finished arriving. It is
+    // `visibility: hidden` until the opening transition settles, and focus()
+    // on an element that is not yet visible fails silently — which is how this
+    // shipped looking correct and doing nothing, and why a fixed short retry
+    // window was not enough either.
+    this.focusWhenReady(gating ? this.continueBtn : this.body);
     bus.emit('codex:open', { id });
   }
 
   close(): void {
     if (!this.isOpen) return;
+    window.clearTimeout(this.focusTimer);
     this.root.classList.remove('on');
     this.root.setAttribute('aria-hidden', 'true');
     if (this.lastFocus instanceof HTMLElement) this.lastFocus.focus();
@@ -149,6 +157,28 @@ export class Codex {
 
   get isGating(): boolean {
     return this.gating;
+  }
+
+  /**
+   * Focus a control once the panel is genuinely visible.
+   *
+   * Driven by transitionend where the browser offers it, with a polling
+   * fallback, and it gives up if the panel closes again in the meantime rather
+   * than yanking focus back from wherever the reader has moved on to.
+   */
+  private focusWhenReady(target: HTMLElement): void {
+    window.clearTimeout(this.focusTimer);
+    const deadline = performance.now() + 2000;
+
+    const attempt = () => {
+      if (!this.isOpen) return;
+      target.focus();
+      if (document.activeElement === target || performance.now() > deadline) return;
+      this.focusTimer = window.setTimeout(attempt, 90);
+    };
+
+    this.root.addEventListener('transitionend', attempt, { once: true });
+    this.focusTimer = window.setTimeout(attempt, 60);
   }
 
   /** Update the "more below" affordance and the edge fade. */
