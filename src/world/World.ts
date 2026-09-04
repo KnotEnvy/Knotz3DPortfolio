@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Sector } from './Sector';
 import { Starfield } from './Starfield';
-import { Grid } from './Grid';
+import { Causeway } from './Causeway';
 import { Corridor, nearestPair } from './Corridor';
 import { Environment } from './Environment';
 import { Nebula } from './Nebula';
@@ -42,7 +42,7 @@ export class World {
   readonly route: Route;
 
   private starfield: Starfield;
-  private grid: Grid;
+  private causeway: Causeway;
   private corridor: Corridor;
   private environment: Environment;
   readonly nebula: Nebula;
@@ -83,8 +83,9 @@ export class World {
     this.starfield = new Starfield(starCount, pixelRatio);
     this.group.add(this.starfield.object);
 
-    this.grid = new Grid();
-    this.group.add(this.grid.object);
+    // The floor and ceiling that make the corridor read as a corridor.
+    this.causeway = new Causeway(this.route);
+    this.group.add(this.causeway.object);
 
     this.corridor = new Corridor(this.route);
     this.group.add(this.corridor.object);
@@ -117,7 +118,7 @@ export class World {
     pixelRatio: number,
   ): THREE.Color {
     this.starfield.update(elapsed, pixelRatio);
-    this.grid.update(elapsed, ship.object.position);
+
     this.corridor.update(elapsed);
     this.environment.update(elapsed);
 
@@ -137,6 +138,7 @@ export class World {
     this.fogTint.copy(deep).lerp(accent, 0.1).multiplyScalar(0.8);
     this.fog.color.lerp(this.fogTint, Math.min(1, dt * 1.2));
     setHullFog(this.fog.color, this.fog.density);
+    this.causeway.update(elapsed, accent, this.fog.color, this.fog.density);
 
     for (const s of this.sectors) {
       s.update(elapsed, dt, ship.object.position);
@@ -148,7 +150,7 @@ export class World {
   dispose(): void {
     for (const s of this.sectors) s.dispose();
     this.starfield.dispose();
-    this.grid.dispose();
+    this.causeway.dispose();
     this.corridor.dispose();
     this.environment.dispose();
     this.nebula.dispose();

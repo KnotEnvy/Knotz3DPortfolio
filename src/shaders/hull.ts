@@ -89,8 +89,8 @@ const FRAG = /* glsl */ `
 
     // Travelling band: reads as data moving through the structure.
     if (uScan > 0.5) {
-      float band = smoothstep(0.86, 1.0, sin(vLocal.y * 0.22 - uTime * 1.7) * 0.5 + 0.5);
-      col += uColor * band * 0.55;
+      float band = smoothstep(0.9, 1.0, sin(vLocal.y * 0.22 - uTime * 1.7) * 0.5 + 0.5);
+      col += uColor * band * 0.28;
     }
 
     // Damage flash: blow the whole surface toward white on a hit so the player

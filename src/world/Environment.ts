@@ -66,7 +66,7 @@ export class Environment {
       // passing close to the lens does not bloom across the whole frame. Fog
       // now supplies the depth cue, so the rim no longer has to.
       const mat = keep(
-        hullMaterial({ color: def.color, base: 0x0d1424, rim: 1.15, power: 2.2, glow: 0.045, scan: true }),
+        hullMaterial({ color: def.color, base: 0x0c1220, rim: 1.05, power: 2.4, glow: 0.03, scan: true }),
       );
 
       // Three silhouettes per sector rather than one. A single rescaled box
@@ -116,9 +116,13 @@ export class Environment {
         // tube. Anything less and the player flies through the scenery.
         const side = i % 2 === 0 ? 1 : -1;
         const radius = radii[variant] * Math.max(sc.x, sc.y, sc.z);
-        const clearance = TUBE_RADIUS + 34 + radius;
-        const out = clearance + rnd() * rnd() * 200;
-        const vert = (rnd() - 0.5) * 150;
+        const clearance = TUBE_RADIUS + 58 + radius;
+        const out = clearance + rnd() * rnd() * 260;
+        // Biased downward so structures rise from the causeway floor instead of
+        // hanging at arbitrary heights. Props scattered evenly above and below
+        // the flight line read as debris; props standing on a surface read as
+        // architecture.
+        const vert = -TUBE_RADIUS - 20 + rnd() * rnd() * 150;
 
         this.p
           .copy(this.pose.position)
@@ -268,7 +272,7 @@ function propGeometries(form: SectorDef['form']): THREE.BufferGeometry[] {
 }
 
 function propScale(form: SectorDef['form'], rnd: () => number): THREE.Vector3 {
-  const j = 0.7 + rnd() * 1.0;
+  const j = 0.6 + rnd() * 0.85;
   switch (form) {
     case 'twin':
       return new THREE.Vector3(j, 0.6 + rnd() * 1.6, j);
