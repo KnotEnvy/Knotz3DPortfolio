@@ -22,15 +22,7 @@
       "Founder / AI Engineer, Hacktivate Nation"
     ]
   },
-  "status": {
-    "phase": "v3 rebuild on a feature branch, reviewed and iterated; not yet merged or deployed",
-    "mainBranch": "main",
-    "featureBranch": "claude/3d-portfolio-polish-8dxhjx",
-    "featureBranchMerged": false,
-    "featureBranchSafeToDelete": false,
-    "note": "main still serves the v2 free-flight build. Everything described below is on the feature branch. Deploy verification in the deployment section refers to v2 and must be redone after this branch merges.",
-    "howToCheckDeployIsCurrent": "Compare the hashed bundle name in the <script> tag of the live site against `npm run build` output locally. If they match, production is serving that commit. Repeat for the GitHub Pages mirror, which does NOT redeploy automatically — it needs `npm run deploy`."
-  },
+  "status": "v3 on a feature branch, not merged or deployed. Five review rounds were run by an independent judge panel scoring graphics, UX and overall quality out of 10. Round 4 scored 8.7 / 9.1 / 8.8; round 5 was stopped partway by the owner, who took over evaluation directly. The 9.5 bar set at the start of the rebuild was not reached, and the merge to main and the deletion of old branches were gated on it — so neither has been done. Both are the owner's call now.",
   "deployment": {
     "intendedHost": "Vercel",
     "productionUrl": "https://knotz3d-portfolio.vercel.app/",
@@ -240,6 +232,11 @@
   ],
   "openItems": [
     {
+      "id": "owner-evaluation",
+      "priority": "high",
+      "item": "Judging stopped at the owner's request part-way through round 5, in favour of testing the build directly. Nothing is blocked on further automated review. The last judged scores were graphics 8.7, UX 9.1, overall 8.8, and the top-ranked remaining items in each were: combat legibility in the pink-lit sectors, the sky reading as competent rather than distinctive art direction, and the handoff-visibility question below."
+    },
+    {
       "id": "deploy-v3",
       "priority": "high",
       "item": "This branch has not been merged or deployed. After merging, redeploy Vercel (automatic on push to main) AND GitHub Pages (`npm run deploy`, which is NOT automatic), then re-verify both against a local build."
@@ -258,6 +255,11 @@
       "id": "unit-tests",
       "priority": "low",
       "item": "GameState (XP, ranks, achievement conditions) has no unit coverage. A mis-awarded achievement shipped and was caught by review rather than by a test."
+    },
+    {
+      "id": "sector-escalation",
+      "priority": "low",
+      "item": "Reviewers noted the six sectors run the same script six times — fly, fight, break the node, read the dossier — which is deliberate and good for conversion, but nothing escalates mechanically across sectors 2-6 the way the visuals imply it might."
     }
   ],
   "knownRisks": [
@@ -266,7 +268,8 @@
     "Custom ShaderMaterials do not receive three’s fog, lights or tone mapping automatically. Anything new that should sit in the same atmosphere has to implement fog itself, as src/shaders/hull.ts does.",
     "Several bugs in this rebuild were of one shape: a factor in an alpha or intensity product silently going to zero, leaving an element rendering as nothing while looking correct in code. When something is invisible, check for a zeroed term before doubting the geometry.",
     "#ui is a stack of fixed full-viewport layers over the canvas, and any one of them that takes pointer events becomes an invisible shield over everything beneath. base.css therefore lists which layers take pointers and defaults the rest to none. A new layer left off that list is visibly broken; a new layer wrongly added to it breaks everything under it silently. Three smoke checks assert the outcome.",
-    "Chromium interpolates a CSS transition or keyframe between a bare hex and a color-mix() through oklab(), and out-of-gamut midpoints can clip to a completely wrong hue — a violet objective card rendered a pure green ring for a whole animation. Both ends of any animated colour must be written with the same colour function."
+    "Chromium interpolates a CSS transition or keyframe between a bare hex and a color-mix() through oklab(), and out-of-gamut midpoints can clip to a completely wrong hue — a violet objective card rendered a pure green ring for a whole animation. Both ends of any animated colour must be written with the same colour function.",
+    "Adding a uniform to a ShaderMaterial's uniforms object does not declare it in the GLSL. Miss the declaration and the shader fails to compile, the material draws nothing, and the game plays and reports identically — it looks like a tuning problem, not a broken shader. Check the console before tuning any effect that looks weak."
   ],
   "conventions": {
     "branching": "Feature work on `claude/<topic>` branches, merged to `main` with --no-ff.",
@@ -307,7 +310,7 @@
   ],
   "testing": {
     "suite": "scripts/smoke.mjs",
-    "philosophy": "Not coverage. Every check is a bug that actually shipped and that a type-checker, a linter and a screenshot all failed to notice. Add to it the same way: when something breaks in a browser, write the check that would have caught it.",
+    "philosophy": "Not coverage. Every check is a bug that actually shipped and that a type-checker, a linter and a screenshot all failed to notice. Add to it the same way: when something breaks in a browser, write the check that would have caught it. Two further rules earned the hard way: a check that can pass without observing the state it describes is worse than no check, because it reports green — assert that the test did its work, not just that nothing went wrong. And behavioural checks cannot see a material that failed to build, so the console is part of the suite.",
     "covers": [
       "A passive visitor who never touches the controls still reaches a dossier",
       "Alt-tab does not permanently freeze the run",
@@ -320,7 +323,9 @@
       "The touch hint does not overlap the shard counter",
       "A real mouse click on a route pip actually jumps sector — the outcome, not the CSS rule",
       "The canvas is reachable through the HUD and through the mobile touch band, so drag-to-fly survives",
-      "The boost button still takes taps"
+      "The boost button still takes taps",
+      "The browser console is clean through a real fight and a dossier — a shader that fails to compile draws nothing and passes every behavioural check, which is how a broken threat-marker shader shipped",
+      "The flight readout never shows BOOST lit while the ship is slower than cruise, asserted across a whole approach rather than at one sampled instant"
     ]
   }
 }
