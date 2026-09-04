@@ -145,6 +145,18 @@
   padding: 1.15rem 1.25rem 2rem;
 }
 
+/*
+ * When the reading pane takes focus it has to say so. Focus landing on a
+ * scroll container with no visible change is indistinguishable from focus
+ * going nowhere, and the arrow keys that now scroll it are not discoverable
+ * unless something shows that they will.
+ */
+.codex__body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--r-sm);
+}
+
 /* Content blocks */
 
 .cx-lead {

@@ -306,6 +306,57 @@ ok(
 );
 await pc.close();
 
+/*
+ * 5f. The dossier must be readable from the keyboard alone.
+ *
+ * Two separate faults met here. The reading pane was permanently focusable, so
+ * on dossiers short enough to fit it was a Tab stop with no focus ring that did
+ * nothing when pressed. And the arrow keys are the flight controls, so the
+ * default scroll action both moved the panel and steered the ship — on a short
+ * dossier, all it did was steer. A keyboard visitor could reach a chapter of
+ * the resume and have no way to read past the fold.
+ */
+const pk2 = await browser.newPage({ viewport: { width: 1024, height: 700 } });
+await pk2.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });
+await pk2.waitForTimeout(2200);
+await pk2.getByRole('button', { name: /Launch|Resume/ }).click();
+await pk2.waitForTimeout(1400);
+await pk2.evaluate(async () => {
+  window.SIGNAL.goto('origin');
+  await new Promise((r) => setTimeout(r, 900));
+  window.SIGNAL.forceDossier();
+});
+await pk2.waitForTimeout(2200);
+
+const pane = await pk2.evaluate(() => {
+  const b = document.querySelector('.codex__body');
+  return { scrollable: b.scrollHeight - b.clientHeight > 4, tabindex: b.getAttribute('tabindex') };
+});
+ok(
+  pane.scrollable === (pane.tabindex === '0'),
+  `the reading pane is a tab stop exactly when it scrolls (${JSON.stringify(pane)})`,
+);
+
+if (pane.scrollable) {
+  await pk2.evaluate(() => document.querySelector('.codex__body').focus());
+  const before = await pk2.evaluate(() => window.SIGNAL.debug().offset);
+  await pk2.keyboard.press('ArrowDown');
+  await pk2.keyboard.press('ArrowDown');
+  await pk2.waitForTimeout(500);
+  const after = await pk2.evaluate(() => ({
+    top: document.querySelector('.codex__body').scrollTop,
+    offset: window.SIGNAL.debug().offset,
+  }));
+  ok(after.top > 0, `arrow keys scroll the dossier (scrollTop ${after.top})`);
+  ok(
+    before[0] === after.offset[0] && before[1] === after.offset[1],
+    `reading the dossier does not fly the ship (${JSON.stringify(before)} -> ${JSON.stringify(after.offset)})`,
+  );
+} else {
+  skip('arrow-key scrolling (this dossier fits its panel)');
+}
+await pk2.close();
+
 /* 5. Title card must survive a narrow viewport. */
 const p3 = await browser.newPage({ viewport: { width: 320, height: 720 } });
 await p3.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });

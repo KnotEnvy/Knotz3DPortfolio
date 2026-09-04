@@ -32,7 +32,11 @@ export class Codex {
     this.sub = el('div', { class: 'codex__sub' });
     this.pips = el('div', { class: 'pips' });
     this.pipLabel = el('span');
-    this.body = el('div', { class: 'codex__body scroll', tabindex: '0' });
+    // Focusable only when there is actually something to scroll — see
+    // syncScroll. A permanently focusable region is a permanent extra Tab stop
+    // that does nothing on the short dossiers, which is the kind of dead press
+    // that makes a keyboard user think the trap is broken.
+    this.body = el('div', { class: 'codex__body scroll', role: 'region', 'aria-label': 'Dossier content' });
 
     // The single most important control in the game. Breaking a node stops the
     // ship and opens the dossier; this button is how the visitor says "read it,
@@ -184,6 +188,32 @@ export class Codex {
    * reader is genuinely free to tab out of, and trapping that would be wrong.
    */
   private onKeydown(e: KeyboardEvent): void {
+    /*
+     * Scroll the dossier explicitly rather than leaving it to the browser.
+     *
+     * The arrow keys are also the flight controls. Left to the default action
+     * the same press both scrolls the panel and steers the ship, so a visitor
+     * reading a chapter is flying at the same time — and on the dossiers that
+     * fit their panel, all it does is steer. Handling the keys here means the
+     * reading pane wins while it has focus, and the ship does not move.
+     */
+    const SCROLL: Record<string, number> = {
+      ArrowDown: 120, ArrowUp: -120, PageDown: 1, PageUp: -1, Home: -1e9, End: 1e9,
+    };
+    if (e.key in SCROLL && this.body.contains(document.activeElement)) {
+      const step = e.key === 'PageDown' || e.key === 'PageUp'
+        ? SCROLL[e.key] * this.body.clientHeight * 0.85
+        : SCROLL[e.key];
+      e.preventDefault();
+      // Arrow and jump keys land immediately; only a page-sized move is worth
+      // animating. Smoothing a 120px arrow step makes held or repeated presses
+      // fight each other's in-flight animations and feel unresponsive, which is
+      // the opposite of what fine keyboard control is for.
+      const smooth = e.key === 'PageDown' || e.key === 'PageUp';
+      this.body.scrollBy({ top: step, behavior: smooth ? 'smooth' : 'auto' });
+      return;
+    }
+
     if (e.key !== 'Tab' || !this.gating) return;
 
     const items = Array.from(
@@ -234,6 +264,19 @@ export class Codex {
     const remaining = el.scrollHeight - el.clientHeight - el.scrollTop;
     const hasMore = remaining > 24;
     this.root.classList.toggle('has-more', hasMore);
+
+    /*
+     * A scrollable region has to be reachable by keyboard, or its content is
+     * unreachable without a mouse — but only while it really scrolls. Some
+     * dossiers fit their panel outright, and on those this was an extra Tab
+     * stop with no visible focus ring that did nothing when pressed.
+     *
+     * Overflow is the condition, so it is tested against overflow rather than
+     * assumed: scrollHeight is the truth here, not the length of the copy.
+     */
+    const scrollable = el.scrollHeight - el.clientHeight > 4;
+    if (scrollable) el.setAttribute('tabindex', '0');
+    else el.removeAttribute('tabindex');
     if (hasMore) {
       const screens = remaining / Math.max(1, el.clientHeight);
       this.moreText.textContent = screens > 1.4 ? `${Math.ceil(screens)} more screens` : 'More below';
