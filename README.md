@@ -1,9 +1,11 @@
 # SIGNAL — Jay W. Snyder
 
-An interactive, playable portfolio. The résumé is a world: six sectors floating
-in a neon corridor, each one a chapter, each one guarded by data shards you
-collect by flying through them. Read it by playing it — or press **Read the
-brief** and get the whole thing as a plain, fast, accessible document.
+An interactive, playable portfolio, built as a rail shooter. The résumé is a
+route: six sectors down a neon corridor, each one a chapter, each one sealed
+behind an encryption node. Fly the corridor, clear what gets in the way, break
+the node — it bursts into data shards, and the chapter it was holding opens as a
+dossier you read on the spot. Read it by playing it, or press **Read the brief**
+and get the whole thing as a plain, fast, accessible document.
 
 **Jay W. Snyder** — AI Engineer · Business Builder · Game Developer
 Owner, [Dazzle Divas Cleaning](https://www.dazzledivascleaning.com/) · Director of
@@ -11,6 +13,23 @@ Sales, Marketing & Technology, [SkyRun Daytona Vacation Rentals](https://skyrun.
 Founder, Hacktivate Nation.
 
 ---
+
+## The loop
+
+Six times, the same five beats:
+
+1. **Fly the corridor.** Forward motion is automatic along a spline; steering
+   moves the ship inside a tube around the centreline, so nobody gets lost.
+2. **Clear the resistance.** Four hostile archetypes, told apart by silhouette.
+3. **Break the node.** A two-phase boss: collapse the shield, then kill the core.
+4. **Read the dossier.** Flight holds. Nothing auto-closes; you leave when done.
+5. **Continue.**
+
+There is exactly one objective at any moment and the HUD always names it. You
+cannot lose — hits cost hull integrity, which regenerates — and if a run stalls
+the game escalates its help, eventually firing for you and then offering the
+chapter outright. Nobody is locked out of a résumé for being bad at a game they
+did not ask to play.
 
 ## Why it is built this way
 

@@ -4,6 +4,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import type { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
 import { bus } from './Events';
 import { clamp, damp } from './Math';
 import { CompositeShader } from '../shaders/composite';
@@ -19,12 +21,14 @@ export interface QualityTier {
   /** Particle budget. */
   particles: number;
   grain: boolean;
+  /** 'smaa' is sharper and costlier; 'fxaa' is the cheap fallback. */
+  aa: 'smaa' | 'fxaa';
 }
 
 export const TIERS: QualityTier[] = [
-  { id: 0, name: 'Low', pixelRatio: 1, bloomStrength: 0.5, starCount: 2600, detail: 0.5, particles: 1500, grain: false },
-  { id: 1, name: 'Medium', pixelRatio: 1.3, bloomStrength: 0.68, starCount: 4800, detail: 0.8, particles: 3000, grain: true },
-  { id: 2, name: 'High', pixelRatio: 1.85, bloomStrength: 0.85, starCount: 8000, detail: 1, particles: 5000, grain: true },
+  { id: 0, name: 'Low', pixelRatio: 1, bloomStrength: 0.5, starCount: 1800, detail: 0.5, particles: 1500, grain: false, aa: 'fxaa' },
+  { id: 1, name: 'Medium', pixelRatio: 1.3, bloomStrength: 0.66, starCount: 2800, detail: 0.8, particles: 3000, grain: true, aa: 'fxaa' },
+  { id: 2, name: 'High', pixelRatio: 1.85, bloomStrength: 0.8, starCount: 4200, detail: 1, particles: 5000, grain: true, aa: 'smaa' },
 ];
 
 /**
@@ -48,6 +52,15 @@ export class Engine {
   private bloomPass: UnrealBloomPass;
   private compositePass: ShaderPass;
   private renderPass: RenderPass;
+  private outputPass: OutputPass;
+  /**
+   * SMAA is sharper than FXAA but three's pass embeds two base64 lookup
+   * textures worth ~40 kB gzipped — a third of the app bundle, for an effect
+   * only the top tier uses. So it is fetched on demand and the cheap FXAA pass
+   * covers everything until (and unless) it arrives.
+   */
+  private smaaPass: Pass | null = null;
+  private fxaaPass: ShaderPass;
 
   /** Smoothed post-processing drivers. */
   private boost = 0;
@@ -57,6 +70,7 @@ export class Engine {
   tier: QualityTier;
   private frameSamples: number[] = [];
   private lastDowngrade = 0;
+  private smaaLoading = false;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.tier = pickInitialTier();
@@ -94,13 +108,24 @@ export class Engine {
     // genuinely emissive — bolts, shield cells, engine bells, explosions — so
     // they read as light sources against a dark world instead of everything
     // reading as fog.
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), this.tier.bloomStrength, 0.72, 0.62);
+    //
+    // Radius is the other half of that: wide radii diffuse a hot core into a
+    // haze, so bright things stop reading as *sources* and start reading as fog.
+    // 0.45 keeps cores compact and hot.
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), this.tier.bloomStrength, 0.45, 0.62);
     this.composer.addPass(this.bloomPass);
 
     this.compositePass = new ShaderPass(CompositeShader);
     this.composer.addPass(this.compositePass);
 
-    this.composer.addPass(new OutputPass());
+    // Antialiasing has to be a pass: the renderer's own MSAA does nothing once
+    // we are rendering through a composer. Without it every slab edge in the
+    // corridor stair-steps, which is the loudest "hobby WebGL" tell there is.
+    this.fxaaPass = new ShaderPass(FXAAShader);
+    this.composer.addPass(this.fxaaPass);
+
+    this.outputPass = new OutputPass();
+    this.composer.addPass(this.outputPass);
 
     this.applyTier(this.tier);
     this.resize();
@@ -113,8 +138,37 @@ export class Engine {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tier.pixelRatio));
     this.bloomPass.strength = tier.bloomStrength;
     this.compositePass.uniforms.amount.value = tier.grain ? 0.028 : 0;
+    if (tier.aa === 'smaa') void this.loadSmaa();
+    this.applyAa();
     this.resize();
     bus.emit('quality:change', { tier: tier.id });
+  }
+
+  /** Fetch and install SMAA once; subsequent calls are no-ops. */
+  private async loadSmaa(): Promise<void> {
+    if (this.smaaPass || this.smaaLoading) return;
+    this.smaaLoading = true;
+    try {
+      const mod = await import('three/examples/jsm/postprocessing/SMAAPass.js');
+      const pass = new mod.SMAAPass();
+      // Must sit before the output pass, which owns tone mapping and the final
+      // colour-space conversion.
+      const at = this.composer.passes.indexOf(this.outputPass);
+      this.composer.insertPass(pass, at < 0 ? this.composer.passes.length : at);
+      this.smaaPass = pass;
+      pass.setSize(window.innerWidth, window.innerHeight);
+      this.applyAa();
+    } catch {
+      // Offline or blocked: FXAA carries on covering it.
+    } finally {
+      this.smaaLoading = false;
+    }
+  }
+
+  private applyAa(): void {
+    const wantSmaa = this.tier.aa === 'smaa' && !!this.smaaPass;
+    if (this.smaaPass) this.smaaPass.enabled = wantSmaa;
+    this.fxaaPass.enabled = !wantSmaa;
   }
 
   setTier(id: number): void {
@@ -131,6 +185,9 @@ export class Engine {
     this.composer.setSize(w, h);
     const px = this.renderer.getPixelRatio();
     this.compositePass.uniforms.resolution.value.set(w * px, h * px);
+    // FXAA works in texel units, so it needs the buffer size, not the CSS size.
+    this.fxaaPass.material.uniforms.resolution.value.set(1 / (w * px), 1 / (h * px));
+    this.smaaPass?.setSize(w, h);
   };
 
   /** Targets for the post drivers; the render step eases toward them. */
@@ -142,7 +199,7 @@ export class Engine {
 
   /** Punch the screen. Called on explosions and node breaks. */
   punch(amount: number): void {
-    this.flash = Math.min(1.1, this.flash + amount);
+    this.flash = Math.min(0.7, this.flash + amount);
   }
 
   /** Rolling frame-time watchdog. Only ever steps quality down. */
@@ -165,7 +222,9 @@ export class Engine {
     // and letting go feels like relief.
     u.uBoost.value = damp(u.uBoost.value as number, this.boost, 3, dt);
     u.uDamage.value = damp(u.uDamage.value as number, this.damage, 4, dt);
-    this.flash = Math.max(0, this.flash - dt * 3.4);
+    // Fast decay: the punch should be over before the player registers it as
+    // a white frame rather than an impact.
+    this.flash = Math.max(0, this.flash - dt * 8);
     u.uFlash.value = this.flash;
 
     this.composer.render();

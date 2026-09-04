@@ -70,4 +70,5 @@ export const icons = {
   play: svg('<path d="M6 4l14 8-14 8Z"/>'),
   download: svg('<path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M4 21h16"/>'),
   arrow: svg('<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>'),
+  copy: svg('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
 };

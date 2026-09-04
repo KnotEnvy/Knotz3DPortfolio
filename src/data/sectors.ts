@@ -1,4 +1,4 @@
-import { ventures, projects, career, education, services, skillGroups } from './content';
+import { ventures, projects, career, careerNote, education, services, skillGroups } from './content';
 import { profile } from './profile';
 
 export type SectorId = 'origin' | 'ventures' | 'forge' | 'arcade' | 'track' | 'uplink';
@@ -218,6 +218,7 @@ export const sectors: SectorDef[] = [
         text:
           'Estimator, implementation manager, co-owner, owner, director. The technical career is recent; the business career is not.',
       },
+      { t: 'para', text: careerNote },
       {
         t: 'timeline',
         items: career.map((r) => ({

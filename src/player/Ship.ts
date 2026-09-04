@@ -84,13 +84,29 @@ export class Ship {
     const shellDark = keep(hullMaterial({ color: accent, base: 0x060a12, rim: 0.7, power: 3.0 }));
     this.hullMats.push(shell, shellDark);
 
-    // Fuselage: a long tapered spine built from two cones so the nose is sharp
-    // and the tail is blunt, which reads as purposeful from behind — the only
-    // angle the player ever actually sees.
-    const nose = new THREE.Mesh(keep(new THREE.ConeGeometry(0.95, 4.6, 6, 1)), shell);
+    // Fuselage: a long faceted spine. Five sides rather than six so the top
+    // face reads as a flat deck from behind — the only angle the player ever
+    // actually sees, and the one the silhouette has to earn.
+    const nose = new THREE.Mesh(keep(new THREE.ConeGeometry(0.88, 6.2, 5, 1)), shell);
     nose.rotation.x = -Math.PI / 2;
-    nose.position.z = -1.6;
+    nose.rotation.z = Math.PI / 10;
+    nose.position.z = -2.2;
     this.hull.add(nose);
+
+    // Chines: a hard edge running the length of the nose. This is the single
+    // detail that stops the craft reading as a generic cone with wings.
+    const chineGeo = keep(new THREE.BoxGeometry(0.16, 0.22, 5.4));
+    for (const side of [1, -1]) {
+      const chine = new THREE.Mesh(chineGeo, shell);
+      chine.position.set(side * 0.72, -0.12, -1.9);
+      chine.rotation.y = side * 0.06;
+      this.hull.add(chine);
+    }
+
+    // Dorsal spine from canopy to tail.
+    const spine = new THREE.Mesh(keep(new THREE.BoxGeometry(0.34, 0.5, 4.6)), shellDark);
+    spine.position.set(0, 0.62, 1.1);
+    this.hull.add(spine);
 
     const body = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.95, 1.15, 3.4, 6, 1)), shell);
     body.rotation.x = Math.PI / 2;
@@ -104,22 +120,25 @@ export class Ship {
     intake.position.z = 0.1;
     this.hull.add(intake);
 
+    // Canopy. Deliberately dim: at rim 1.7 with a glow floor this was the
+    // brightest thing on the craft and bloomed into a white ball that ate the
+    // whole nose.
     const canopy = new THREE.Mesh(
-      keep(new THREE.SphereGeometry(0.66, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2)),
+      keep(new THREE.SphereGeometry(0.62, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2)),
       keep(
         hullMaterial({
-          color: 0xa8f5ff,
-          base: 0x11304a,
-          rim: 1.7,
-          power: 1.7,
-          glow: 0.16,
+          color: 0x5fc8e8,
+          base: 0x0a1c2c,
+          rim: 0.85,
+          power: 2.4,
+          glow: 0.02,
           transparent: true,
-          opacity: 0.72,
+          opacity: 0.5,
         }),
       ),
     );
-    canopy.position.set(0, 0.5, -0.9);
-    canopy.scale.z = 1.7;
+    canopy.position.set(0, 0.46, -1.1);
+    canopy.scale.z = 1.9;
     this.hull.add(canopy);
 
     // Swept delta wings with a bright leading edge.
@@ -155,6 +174,19 @@ export class Ship {
       canard.position.set(side * 0.85, 0.1, -2.5);
       this.canards.push(canard);
       this.hull.add(canard);
+
+      // Upturned winglet: reads instantly at any distance and gives the
+      // planform a recognisable outline against the corridor.
+      const winglet = new THREE.Mesh(keep(new THREE.BoxGeometry(0.14, 1.3, 1.5)), shellDark);
+      winglet.position.set(side * 3.5, 0.5, 1.1);
+      winglet.rotation.z = side * 0.34;
+      this.hull.add(winglet);
+
+      // Ventral fin, angled down and out.
+      const ventral = new THREE.Mesh(keep(new THREE.BoxGeometry(0.12, 0.95, 1.2)), shellDark);
+      ventral.position.set(side * 1.5, -0.62, 1.9);
+      ventral.rotation.z = side * -0.55;
+      this.hull.add(ventral);
 
       // Wingtip nacelle + engine bell.
       const nacelle = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.34, 0.44, 2.1, 10)), shell);

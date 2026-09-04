@@ -20,9 +20,9 @@ import { Route, TUBE_RADIUS, makePose } from './Route';
 
 interface Band {
   def: SectorDef;
-  props: THREE.InstancedMesh;
+  props: THREE.InstancedMesh[];
   arches: THREE.InstancedMesh | null;
-  mat: HullMaterial;
+  mats: HullMaterial[];
   archMat: THREE.MeshBasicMaterial | null;
   accents: THREE.InstancedMesh | null;
   accentMat: THREE.MeshBasicMaterial | null;
@@ -69,24 +69,36 @@ export class Environment {
         hullMaterial({ color: def.color, base: 0x0d1424, rim: 1.15, power: 2.2, glow: 0.045, scan: true }),
       );
 
-      const geo = keep(propGeometry(def.form));
-      geo.computeBoundingSphere();
-      // Clearance is derived from the geometry's own bounds rather than a
+      // Three silhouettes per sector rather than one. A single rescaled box
+      // repeated forty times reads as scattered planks; three shapes in the same
+      // material vocabulary read as architecture, for the cost of two extra
+      // draw calls.
+      const geos = propGeometries(def.form).map((g) => {
+        const kept = keep(g);
+        kept.computeBoundingSphere();
+        return kept;
+      });
+
+      // Clearance is derived from each geometry's own bounds rather than a
       // hand-maintained table of widths. The table version silently let a
       // scaled-up VENTURES tower sit eight metres off the flight line, because
       // it accounted only for the box's width while these props are also
       // displaced vertically and yawed.
-      const baseRadius = geo.boundingSphere?.radius ?? 20;
+      const radii = geos.map((g) => g.boundingSphere?.radius ?? 20);
 
       // Density matters more than any single silhouette here. Scattered thinly
       // and far out, structures read as specks and the corridor reads as empty
       // space with a boss at the end of it.
-      const count = Math.round((mission.lead > 0 ? 90 : 64) * this.detail);
-      const props = new THREE.InstancedMesh(geo, mat, count);
-      props.name = `env:props:${def.id}`;
-      props.frustumCulled = false;
+      const count = Math.round((mission.lead > 0 ? 96 : 68) * this.detail);
+      const perVariant = Math.ceil(count / geos.length) + 4;
+      const props = geos.map((g, v) => {
+        const im = new THREE.InstancedMesh(g, mat, perVariant);
+        im.name = `env:props:${def.id}:${v}`;
+        im.frustumCulled = false;
+        return im;
+      });
 
-      let placed = 0;
+      const placed = geos.map(() => 0);
       for (let i = 0; i < count; i++) {
         const t = (i + 0.5) / count;
         const d = from + span * t;
@@ -97,12 +109,13 @@ export class Environment {
 
         route.poseAt(d, this.pose);
 
+        const variant = i % geos.length;
         const sc = propScale(def.form, rnd);
 
         // Push the prop out by its own scaled bounding radius on top of the
         // tube. Anything less and the player flies through the scenery.
         const side = i % 2 === 0 ? 1 : -1;
-        const radius = baseRadius * Math.max(sc.x, sc.y, sc.z);
+        const radius = radii[variant] * Math.max(sc.x, sc.y, sc.z);
         const clearance = TUBE_RADIUS + 34 + radius;
         const out = clearance + rnd() * rnd() * 200;
         const vert = (rnd() - 0.5) * 150;
@@ -118,13 +131,15 @@ export class Environment {
         this.q.multiply(new THREE.Quaternion().setFromEuler(this.euler));
 
         this.m.compose(this.p, this.q, sc);
-        props.setMatrixAt(placed++, this.m);
+        if (placed[variant] < perVariant) props[variant].setMatrixAt(placed[variant]++, this.m);
       }
-      // Skipped slots would otherwise render as identity-matrix props sitting at
+      // Unused slots would otherwise render as identity-matrix props stacked at
       // the world origin.
-      props.count = placed;
-      props.instanceMatrix.needsUpdate = true;
-      this.object.add(props);
+      props.forEach((im, v) => {
+        im.count = placed[v];
+        im.instanceMatrix.needsUpdate = true;
+        this.object.add(im);
+      });
 
       // Arches: hero geometry straddling the rail. Only some forms get them,
       // because a corridor where everything is an arch stops reading as one.
@@ -177,13 +192,13 @@ export class Environment {
       accents.instanceMatrix.needsUpdate = true;
       this.object.add(accents);
 
-      this.bands.push({ def, props, arches, mat, archMat, accents, accentMat });
+      this.bands.push({ def, props, arches, mats: [mat], archMat, accents, accentMat });
     });
   }
 
   update(elapsed: number): void {
     for (const b of this.bands) {
-      b.mat.uniforms.uTime.value = elapsed;
+      for (const m of b.mats) m.uniforms.uTime.value = elapsed;
       if (b.archMat) b.archMat.opacity = 0.15 + Math.sin(elapsed * 0.7 + b.def.index) * 0.06;
       if (b.accentMat) b.accentMat.opacity = 0.3 + Math.sin(elapsed * 2.1 + b.def.index * 1.7) * 0.14;
     }
@@ -191,7 +206,7 @@ export class Environment {
 
   dispose(): void {
     for (const b of this.bands) {
-      b.props.dispose();
+      for (const im of b.props) im.dispose();
       b.arches?.dispose();
       b.accents?.dispose();
     }
@@ -200,27 +215,55 @@ export class Environment {
   }
 }
 
-/** The silhouette vocabulary for each sector. */
-function propGeometry(form: SectorDef['form']): THREE.BufferGeometry {
+/**
+ * The silhouette vocabulary for each sector: three related shapes that share a
+ * language, so a band reads as one place built by one civilisation rather than
+ * as a row of identical blocks.
+ */
+function propGeometries(form: SectorDef['form']): THREE.BufferGeometry[] {
   switch (form) {
-    // ORIGIN: raw monoliths. Nothing built yet, just the material.
+    // ORIGIN: raw monoliths and pylons. Nothing built yet, just the material.
     case 'knot':
-      return new THREE.BoxGeometry(6, 46, 6, 1, 3, 1);
-    // VENTURES: towers. Two businesses, built upward.
+      return [
+        new THREE.BoxGeometry(6, 46, 6, 1, 3, 1),
+        new THREE.ConeGeometry(7, 34, 4, 1),
+        new THREE.BoxGeometry(17, 24, 8, 1, 2, 1),
+      ];
+    // VENTURES: towers and blocks. Two businesses, built upward.
     case 'twin':
-      return new THREE.BoxGeometry(14, 78, 14, 1, 6, 1);
-    // THE FORGE: capsule reactor vessels and conduit runs.
+      return [
+        new THREE.BoxGeometry(14, 78, 14, 1, 6, 1),
+        new THREE.CylinderGeometry(8, 13, 62, 6, 4),
+        new THREE.BoxGeometry(32, 30, 18, 2, 2, 1),
+      ];
+    // THE FORGE: pressure vessels, coils and pipe racks.
     case 'reactor':
-      return new THREE.CapsuleGeometry(6, 26, 5, 10);
-    // ARCADE: screen panels, wide and flat, facing the corridor.
+      return [
+        new THREE.CapsuleGeometry(6, 26, 5, 10),
+        new THREE.TorusGeometry(14, 3.2, 6, 20),
+        new THREE.BoxGeometry(9, 44, 9, 1, 4, 1),
+      ];
+    // ARCADE: screen walls, cabinet bodies and neon tubes.
     case 'cabinet':
-      return new THREE.BoxGeometry(30, 22, 2.5);
-    // TRACK RECORD: stacked archive plates.
+      return [
+        new THREE.BoxGeometry(30, 22, 2.5),
+        new THREE.BoxGeometry(15, 32, 11, 1, 3, 1),
+        new THREE.CylinderGeometry(1.6, 1.6, 42, 8),
+      ];
+    // TRACK RECORD: archive plates, columns and rings.
     case 'spine':
-      return new THREE.BoxGeometry(46, 2.6, 22);
-    // UPLINK: antenna masts.
+      return [
+        new THREE.BoxGeometry(46, 2.6, 22),
+        new THREE.BoxGeometry(11, 34, 11, 1, 3, 1),
+        new THREE.TorusGeometry(19, 1.8, 4, 10),
+      ];
+    // UPLINK: masts, dishes and relay nodes.
     case 'beacon':
-      return new THREE.CylinderGeometry(0.8, 3.2, 66, 7);
+      return [
+        new THREE.CylinderGeometry(0.8, 3.2, 66, 7),
+        new THREE.ConeGeometry(11, 18, 7, 1, true),
+        new THREE.IcosahedronGeometry(7, 0),
+      ];
   }
 }
 

@@ -16,6 +16,8 @@ export class Codex {
   private pipLabel: HTMLElement;
   private body: HTMLElement;
   private foot: HTMLElement;
+  private more: HTMLElement;
+  private moreText: HTMLElement;
   private continueBtn: HTMLButtonElement;
   private closeBtn: HTMLButtonElement;
   private current: SectorDef | null = null;
@@ -53,7 +55,22 @@ export class Codex {
       onclick: () => this.close(),
     }) as HTMLButtonElement;
 
-    this.foot = el('footer', { class: 'codex__foot' }, [this.continueBtn]);
+    // Measured on THE FORGE: 1691px of dossier inside a 699px window — nearly
+    // two and a half screens — with a full-width Continue button pinned under
+    // it and a hairline scrollbar as the only clue. The payoff of the entire
+    // game was the thing most likely to be skipped, so the panel now says
+    // outright how much is left and offers to take you there.
+    this.more = el('button', {
+      class: 'codex__more',
+      type: 'button',
+      'aria-label': 'Scroll down through the dossier',
+      onclick: () => this.body.scrollBy({ top: this.body.clientHeight * 0.85, behavior: 'smooth' }),
+    }, [el('span', { class: 'codex__moreText' }), el('span', { class: 'codex__moreArrow', text: '↓' })]);
+    this.moreText = this.more.querySelector('.codex__moreText') as HTMLElement;
+
+    this.body.addEventListener('scroll', () => this.syncScroll(), { passive: true });
+
+    this.foot = el('footer', { class: 'codex__foot' }, [this.more, this.continueBtn]);
 
     this.root = el(
       'aside',
@@ -76,7 +93,14 @@ export class Codex {
     // are finished with it — an earlier build closed dossiers a few seconds
     // after arrival, which snatched content away mid-sentence.
     bus.on('shard:collect', ({ sector }) => {
-      if (this.current?.id === sector) this.syncProgress();
+      if (this.current?.id !== sector) return;
+      // A full re-render once the last shard lands, not just a pip update:
+      // 'sector:decrypted' fires when the node breaks, which is *before* the
+      // shards finish flying in, so a panel opened in that window kept showing
+      // "Classified — locked" while its own pips read decrypted.
+      const wasLocked = !!this.root.querySelector('.cx-bonus.locked');
+      if (wasLocked && this.state.isDecrypted(sector)) this.render(this.current!);
+      else this.syncProgress();
     });
     bus.on('sector:decrypted', ({ id }) => {
       if (this.current?.id === id) this.render(this.current);
@@ -102,6 +126,7 @@ export class Codex {
     this.root.classList.add('on');
     this.root.setAttribute('aria-hidden', 'false');
     this.body.scrollTop = 0;
+    this.syncScroll();
     // Move focus into the panel. Without this a keyboard user is handed a
     // scrollable region they have no way to reach.
     requestAnimationFrame(() => (gating ? this.continueBtn : this.body).focus());
@@ -124,6 +149,18 @@ export class Codex {
 
   get isGating(): boolean {
     return this.gating;
+  }
+
+  /** Update the "more below" affordance and the edge fade. */
+  private syncScroll(): void {
+    const el = this.body;
+    const remaining = el.scrollHeight - el.clientHeight - el.scrollTop;
+    const hasMore = remaining > 24;
+    this.root.classList.toggle('has-more', hasMore);
+    if (hasMore) {
+      const screens = remaining / Math.max(1, el.clientHeight);
+      this.moreText.textContent = screens > 1.4 ? `${Math.ceil(screens)} more screens` : 'More below';
+    }
   }
 
   private syncProgress(): void {
@@ -151,6 +188,8 @@ export class Codex {
 
     this.body.replaceChildren(...nodes);
     this.syncProgress();
+    // Layout has to settle before scrollHeight means anything.
+    requestAnimationFrame(() => this.syncScroll());
   }
 
   private bonus(def: SectorDef, unlocked: boolean): HTMLElement {

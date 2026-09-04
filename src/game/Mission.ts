@@ -47,6 +47,23 @@ export class Director {
   private dossierOpen = false;
   private tmp = new THREE.Vector3();
 
+  /**
+   * Stall detection.
+   *
+   * The failure this exists to prevent, found by watching someone launch and do
+   * nothing: the ship flies itself to the first node, stops, and sits there
+   * forever being shot at, because the visitor never worked out that they can
+   * fire. That is precisely the non-gamer this site is aimed at, and the site's
+   * answer was a beautiful screensaver with no way out. So progress is watched,
+   * and if it stops the interface escalates — first a plain instruction, then
+   * automatic fire, then an explicit offer to skip the fight entirely. Nobody
+   * gets locked out of a résumé for being bad at a game they did not ask to play.
+   */
+  private stall = 0;
+  private assistFire = false;
+  private assistSkip = false;
+  private lastDamage = 0;
+
   constructor(
     private route: Route,
     private combat: Combat,
@@ -87,6 +104,63 @@ export class Director {
    * sectors is dropped in at the fourth with the first three standing open —
    * nobody should have to re-earn content they have already read.
    */
+  private resetStall(): void {
+    this.stall = 0;
+    this.assistSkip = false;
+    bus.emit('assist:skip', { on: false });
+  }
+
+  /** Watch for a fight that is not progressing, and escalate help. */
+  private updateAssist(dt: number): void {
+    const engaged = this.phase === 'engage' || this.phase === 'node';
+    if (!engaged) {
+      if (this.stall !== 0) this.resetStall();
+      return;
+    }
+
+    if (this.combat.damageDealt > this.lastDamage) {
+      this.lastDamage = this.combat.damageDealt;
+      if (this.stall > 0) this.resetStall();
+      return;
+    }
+
+    this.stall += dt;
+
+    if (this.stall > 6 && this.stall - dt <= 6) {
+      bus.emit('assist:hint', {
+        text: this.combat.shotsFired === 0 ? 'Hold click or press Space to fire' : 'Keep firing — line the target up ahead of you',
+      });
+    }
+    // Nobody has fired a shot in fourteen seconds of being shot at. Take over
+    // the trigger rather than letting them sit there.
+    if (!this.assistFire && this.stall > 14 && this.combat.shotsFired === 0) {
+      this.assistFire = true;
+      bus.emit('assist:autofire', undefined);
+    }
+    // Still nothing. Offer the content directly.
+    if (!this.assistSkip && this.stall > 26) {
+      this.assistSkip = true;
+      bus.emit('assist:skip', { on: true });
+    }
+  }
+
+  /** True while the guns should fire without the player holding anything. */
+  get autoFire(): boolean {
+    return this.assistFire;
+  }
+
+  /**
+   * Hand over the dossier without winning the fight. Wired to the "Open it
+   * anyway" affordance the assist offers after a long stall.
+   */
+  skipToDossier(ship: Ship): void {
+    if (this.phase === 'dossier' || this.phase === 'complete') return;
+    const s = this.sector;
+    if (!s.decrypted) s.forceDecrypt();
+    this.resetStall();
+    this.openDossier(ship);
+  }
+
   start(ship: Ship): void {
     let first = sectors.findIndex((s) => this.state.shardsIn(s.id).length < s.shards);
     if (first < 0) first = sectors.length - 1;
@@ -269,8 +343,9 @@ export class Director {
 
   /* --------------------------------------------------------------- update */
 
-  update(_dt: number, ship: Ship): void {
+  update(dt: number, ship: Ship): void {
     if (this.phase === 'idle' || this.phase === 'dossier') return;
+    this.updateAssist(dt);
 
     if (this.phase === 'complete') {
       // Free flight to the end of the route once everything is open.
@@ -318,9 +393,11 @@ export class Director {
         this.openDossier(ship);
       } else {
         this.objectiveTitle = node.shielded ? `Collapse the ${this.mission.nodeName} shield` : 'Destroy the exposed core';
-        this.objectiveDetail = node.shielded
-          ? `Shield ${Math.round(node.shieldPct * 100)}%`
-          : `Core ${Math.round(node.corePct * 100)}%`;
+        const bar = node.shielded ? `Shield ${Math.round(node.shieldPct * 100)}%` : `Core ${Math.round(node.corePct * 100)}%`;
+        // Hostiles do not stop shooting because the boss arrived. Saying so
+        // keeps the player's threat model honest.
+        const left = this.combat.aliveCount;
+        this.objectiveDetail = left > 0 ? `${bar} · ${left} hostile${left === 1 ? '' : 's'} still active` : bar;
       }
     }
 

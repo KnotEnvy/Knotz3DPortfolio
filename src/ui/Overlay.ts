@@ -32,6 +32,8 @@ export class Overlay {
   private closeBtn: HTMLButtonElement;
   private lastFocus: Element | null = null;
   private recordBody: HTMLElement;
+  private resetBtn!: HTMLButtonElement;
+  private resetArmed = 0;
 
   constructor(parent: HTMLElement, private state: GameState, private handlers: OverlayHandlers) {
     this.closeBtn = el('button', {
@@ -92,21 +94,71 @@ export class Overlay {
               this.handlers.brief();
             },
           }),
-          el('button', {
+          // Two-step. This wipes every shard, rank and achievement, and it used
+          // to sit one unguarded click away from "Resume flight".
+          (this.resetBtn = el('button', {
             class: 'btn btn--ghost',
             type: 'button',
             text: 'Reset progress',
-            onclick: () => {
-              this.handlers.reset();
-              this.renderRecord();
-            },
-          }),
+            onclick: () => this.onResetClick(),
+          }) as HTMLButtonElement),
         ]),
       ]),
     ]);
 
+    // A real focus trap, not just `inert` on siblings. The skip link lives
+    // outside #ui, so inerting the overlay's siblings still let Tab walk out of
+    // a dialog that claims `aria-modal`.
+    this.root.addEventListener('keydown', (e) => this.onKeydown(e as KeyboardEvent));
+
     parent.append(this.root);
     this.select('controls');
+  }
+
+  /** Focusable descendants of the panel, in document order. */
+  private focusables(): HTMLElement[] {
+    const sel = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    return Array.from(this.root.querySelectorAll<HTMLElement>(sel)).filter(
+      (n) => !n.hasAttribute('hidden') && n.offsetParent !== null,
+    );
+  }
+
+  private onKeydown(e: KeyboardEvent): void {
+    if (e.key !== 'Tab') return;
+    const items = this.focusables();
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+
+    if (e.shiftKey && (active === first || !this.root.contains(active))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (active === last || !this.root.contains(active))) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  /** First click arms, second confirms, and it disarms itself after 4 seconds. */
+  private onResetClick(): void {
+    if (!this.resetArmed) {
+      this.resetBtn.textContent = 'Tap again to wipe everything';
+      this.resetBtn.classList.add('armed');
+      this.resetArmed = window.setTimeout(() => this.disarmReset(), 4000);
+      return;
+    }
+    this.disarmReset();
+    this.handlers.reset();
+    this.renderRecord();
+    this.syncSectors();
+  }
+
+  private disarmReset(): void {
+    window.clearTimeout(this.resetArmed);
+    this.resetArmed = 0;
+    this.resetBtn.textContent = 'Reset progress';
+    this.resetBtn.classList.remove('armed');
   }
 
   private buildControls(): HTMLElement {
@@ -141,7 +193,7 @@ export class Overlay {
 
   private buildSectors(): HTMLElement {
     return el('div', { class: 'ov__pane' }, [
-      el('p', { class: 'ov__lead', text: 'Jump straight to any sector you have already reached, or re-open a dossier you closed.' }),
+      el('p', { class: 'ov__lead', text: 'Jump straight to any sector — including ones you have not flown to yet — or re-open a dossier you closed.' }),
       el(
         'div',
         { class: 'jump' },
@@ -209,7 +261,9 @@ export class Overlay {
       if (!node) continue;
       const done = this.state.isDecrypted(s.id);
       const seen = this.state.hasVisited(s.id);
-      node.textContent = done ? 'Decrypted' : seen ? 'Reached' : 'Locked';
+      // Never "Locked". A hurried operator must be able to jump straight to
+      // UPLINK — the chapter that actually converts — without playing to it.
+      node.textContent = done ? 'Decrypted' : seen ? 'Reached' : 'Jump ahead';
       node.className = done ? 'jump__state done' : seen ? 'jump__state seen' : 'jump__state';
     }
   }
@@ -221,6 +275,7 @@ export class Overlay {
   open(tab: Tab = 'controls'): void {
     this.lastFocus = document.activeElement;
     this.root.hidden = false;
+    this.setSiblingsInert(true);
     this.select(tab);
     requestAnimationFrame(() => {
       this.root.classList.add('on');
@@ -230,10 +285,28 @@ export class Overlay {
 
   close(): void {
     if (this.root.hidden) return;
+    this.disarmReset();
     this.root.classList.remove('on');
     this.root.hidden = true;
+    this.setSiblingsInert(false);
     this.handlers.resume();
     if (this.lastFocus instanceof HTMLElement) this.lastFocus.focus();
+  }
+
+  /**
+   * Make everything behind the dialog unreachable while it is open.
+   *
+   * The panel declares `aria-modal`, and without this that declaration is
+   * simply untrue: six tabs walked out of the dialog, through the document and
+   * into the paused game's HUD and toolbar behind it.
+   */
+  private setSiblingsInert(on: boolean): void {
+    const parent = this.root.parentElement;
+    if (!parent) return;
+    for (const child of Array.from(parent.children)) {
+      if (child === this.root) continue;
+      (child as HTMLElement).inert = on;
+    }
   }
 
   toggle(tab: Tab = 'controls'): void {

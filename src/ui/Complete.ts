@@ -12,7 +12,7 @@ export class Complete {
   private closeBtn: HTMLButtonElement;
 
   constructor(parent: HTMLElement, private state: GameState, private onClose: () => void) {
-    this.stats = el('div', { class: 'done__stats' });
+    this.stats = el('div', { class: 'finale__stats' });
 
     this.closeBtn = el('button', {
       class: 'btn',
@@ -23,23 +23,23 @@ export class Complete {
 
     this.root = el(
       'div',
-      { class: 'done', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Run complete', 'aria-hidden': 'true' },
+      { class: 'finale', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Run complete', 'aria-hidden': 'true' },
       [
-        el('div', { class: 'done__card' }, [
-          el('div', { class: 'done__tag' }, [el('span', { html: icons.trophy }), el('span', { text: 'Transmission complete' })]),
-          el('h2', { class: 'done__title', text: 'You read the whole thing.' }),
+        el('div', { class: 'finale__card' }, [
+          el('div', { class: 'finale__tag' }, [el('span', { html: icons.trophy }), el('span', { text: 'Transmission complete' })]),
+          el('h2', { class: 'finale__title', text: 'You read the whole thing.' }),
           el('p', {
-            class: 'done__copy',
+            class: 'finale__copy',
             text:
               'Every shard recovered. You just read a full résumé — six dossiers, ten projects, fifteen years of operating — by flying through it, and it did not feel like reading a résumé.',
           }),
           el('p', {
-            class: 'done__copy',
+            class: 'finale__copy',
             text:
               'That is the whole pitch. Attention is the scarcest thing your business competes for, and the right interface changes what people are willing to give you. Let us talk about what that looks like for your customers.',
           }),
           this.stats,
-          el('div', { class: 'done__actions' }, [
+          el('div', { class: 'finale__actions' }, [
             el('a', {
               class: 'btn btn--primary',
               href: `mailto:${profile.email}?subject=Let%27s%20talk%20AI`,
@@ -66,7 +66,7 @@ export class Complete {
       ['Flight time', `${mins}m ${String(secs).padStart(2, '0')}s`],
     ];
     this.stats.replaceChildren(
-      ...rows.map(([k, v]) => el('div', { class: 'done__stat' }, [el('b', { text: v }), el('span', { text: k })])),
+      ...rows.map(([k, v]) => el('div', { class: 'finale__stat' }, [el('b', { text: v }), el('span', { text: k })])),
     );
 
     this.root.classList.add('on');

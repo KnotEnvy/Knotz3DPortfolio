@@ -105,6 +105,11 @@ export class Combat {
 
   private fireTimer = 0;
   private muzzleFlip = 0;
+  /** Lifetime shots. Zero after an engagement has run a while means the visitor
+   *  has not worked out that they can shoot, and the assist should step in. */
+  shotsFired = 0;
+  /** Damage the player has dealt since this was last reset, for stall detection. */
+  damageDealt = 0;
 
   private pose: Pose = makePose();
   private m = new THREE.Matrix4();
@@ -118,6 +123,7 @@ export class Combat {
   private fwd = new THREE.Vector3();
   private hidden = new THREE.Vector3(0, 0, 0);
   private axisZ = new THREE.Vector3(0, 0, 1);
+  private killPos = new THREE.Vector3();
 
   constructor(
     private route: Route,
@@ -305,6 +311,7 @@ export class Combat {
 
     const b = this.bolts.find((x) => x.life <= 0);
     if (!b) return;
+    this.shotsFired++;
 
     ship.muzzle(this.muzzleFlip, this.muzzlePos);
     this.muzzleFlip = (this.muzzleFlip + 1) % 2;
@@ -458,6 +465,7 @@ export class Combat {
           this.v.subVectors(b.pos, this.node.position).normalize().multiplyScalar(this.node.radius);
           this.w.copy(this.node.position).add(this.v);
           const did = this.node.hit(1, this.w);
+          if (did) this.damageDealt += 1;
           this.particles.burst(this.w, {
             count: did ? 12 : 8,
             color: did ? 0xffffff : 0x8fd8ff,
@@ -535,6 +543,7 @@ export class Combat {
   }
 
   private hitEnemy(e: Enemy, at: THREE.Vector3, damage: number): void {
+    this.damageDealt += damage;
     e.hp -= damage;
     e.flash = 1;
     for (const m of e.visual.mats) m.uniforms.uHit.value = 1;
@@ -555,7 +564,9 @@ export class Combat {
     }
 
     const p = enemyProfiles[e.kind];
-    const pos = e.visual.group.position.clone();
+    // Scratch, not a clone: every consumer below copies out of it, and this is
+    // the hot path the "nothing allocates during play" note above refers to.
+    const pos = this.killPos.copy(e.visual.group.position);
 
     // The kill: a hot white core, a coloured debris shell, two rings and a
     // flash. This is the moment the whole VFX layer exists to serve.

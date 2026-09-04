@@ -3,6 +3,8 @@
  * Sector geometry/placement lives in sectors.ts — this file is prose and facts.
  */
 
+import { profile } from './profile';
+
 export interface Venture {
   id: string;
   name: string;
@@ -21,12 +23,12 @@ export const ventures: Venture[] = [
     name: 'Dazzle Divas Cleaning',
     role: 'Owner',
     period: '2018 — Present',
-    url: 'https://www.dazzledivascleaning.com/',
+    url: profile.siteDazzle,
     summary:
       'Volusia County vacation-rental turnover and residential cleaning company. Built from a single van and a phone number into the crew property managers call first.',
     points: [
       'Grew the book of business entirely through grassroots marketing, local relationships and referral loops — no paid acquisition.',
-      'Standardised a 2–4 hour guest-ready turnover with photo verification, so managers can trust the unit is listing-ready without driving out to it.',
+      'Standardized a 2–4 hour guest-ready turnover with photo verification, so managers can trust the unit is listing-ready without driving out to it.',
       'Wrote the company website (Next.js), the internal inspection-checklist app, and the quoting flow myself.',
       'Sell a Review Protection Guarantee: if a guest review mentions cleanliness, we re-clean free. It converts because the operation can back it.',
       'Serve 15+ cities: Daytona Beach, Ormond Beach, New Smyrna, Port Orange, Ponce Inlet and the rest of the county.',
@@ -44,7 +46,7 @@ export const ventures: Venture[] = [
     name: 'SkyRun Daytona Vacation Rentals',
     role: 'Director of Sales, Marketing & Technology',
     period: 'Aug 2026 — Present',
-    url: 'https://skyrun.com/daytona/',
+    url: profile.siteSkyrun,
     summary:
       'Short-term rental management across Daytona Beach, Daytona Beach Shores, Ormond Beach, New Smyrna Beach and Ponce Inlet. I own the revenue side and the systems that run it.',
     points: [
@@ -193,7 +195,7 @@ export const projects: Project[] = [
     id: 'casino',
     name: 'Knotz Crapz N Cardz',
     kind: 'game',
-    headline: 'Casino games where the maths is as honest as the physics.',
+    headline: 'Casino games where the math is as honest as the physics.',
     body:
       'A collection of casino games built properly. The craps table runs genuine rigid-body dice physics that always resolve to exactly what the RNG called — the hard problem is making a real simulation land on a predetermined result without looking rigged. Dragon’s Shrine is a 5x4 video slot with free spins, hold-and-win and four jackpot tiers, with a measured return-to-player rather than a guessed one.',
     stack: ['TypeScript', 'Canvas/WebGL', 'Physics simulation', 'Docker', 'nginx', 'docker-compose'],
@@ -274,7 +276,7 @@ export const projects: Project[] = [
       'Owned end to end — I write it, I run the business it sells',
     ],
     repo: 'https://github.com/KnotEnvy/dazzle-divas-cleaning',
-    live: 'https://www.dazzledivascleaning.com/',
+    live: profile.siteDazzle,
     live2: { label: 'Field Checklist app', href: 'https://app.dazzledivascleaning.com/' },
     scale: 'Production',
   },
@@ -307,6 +309,14 @@ export interface Role {
   points: string[];
   current?: boolean;
 }
+
+/**
+ * Three roles run concurrently and a skeptical reader will notice. Better to
+ * explain the shape up front than to let them wonder whether the résumé is
+ * padded.
+ */
+export const careerNote =
+  'Three of these run at once, and that is the point rather than an accident. Dazzle Divas is the operating business I own; SkyRun is the revenue and technology role that business qualified me for; Hacktivate Nation is the practice where the software gets built. Each one feeds the other two — the cleaning company is the customer that keeps the automation honest.';
 
 export const career: Role[] = [
   {
@@ -351,7 +361,7 @@ export const career: Role[] = [
     period: '2021 — 2023',
     place: 'Daytona Beach, FL',
     points: [
-      'Owned all quoting across mail print, wide format, promotional and fulfilment lines.',
+      'Owned all quoting across mail print, wide format, promotional and fulfillment lines.',
       'Ran vendor relationships and competitive pricing to protect margin.',
       'Supported sales through deal close, using operational knowledge to open new revenue lines.',
     ],
@@ -419,7 +429,7 @@ export const services: Service[] = [
     deliverables: [
       'Process map of where the hours actually go',
       'Ranked automation backlog with effort and payback',
-      'Tooling recommendation with real cost modelling',
+      'Tooling recommendation with real cost modeling',
       'A 90-day sequence your team can execute',
     ],
   },
@@ -475,7 +485,7 @@ export const skillGroups = [
       'OpenAI / Anthropic / Gemini APIs',
       'Fine-tuning & model selection',
       'Vector search',
-      'Cost & latency optimisation',
+      'Cost & latency optimization',
     ],
   },
   {

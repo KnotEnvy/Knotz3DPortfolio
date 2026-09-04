@@ -249,6 +249,19 @@ export class Sector {
     this.cage.visible = true;
   }
 
+  /**
+   * Open the node without the fight. Used by the stall assist: a visitor who
+   * cannot or will not shoot still gets the chapter, and still gets the
+   * detonation that announces it.
+   */
+  forceDecrypt(): void {
+    if (this.state === 'decrypted') return;
+    this.hp = 0;
+    if (this.state === 'idle') this.state = 'engaged';
+    this.breachShield();
+    this.beginDecrypt();
+  }
+
   /** Mark as already-open, for a returning visitor who cleared it last time. */
   markDecrypted(): void {
     this.state = 'decrypted';
@@ -332,7 +345,7 @@ export class Sector {
     });
   }
 
-  update(elapsed: number, dt: number, playerPos: THREE.Vector3, camera: THREE.Camera): void {
+  update(elapsed: number, dt: number, playerPos: THREE.Vector3): void {
     const dist = playerPos.distanceTo(this.object.position);
     const target = 1 - smoothstep(120, 620, dist);
     this.activation = damp(this.activation, target, 3, dt);
@@ -400,9 +413,6 @@ export class Sector {
     this.cage.rotation.x = elapsed * 0.09;
     this.ring.rotation.z = elapsed * 0.22;
 
-    // Label always faces the camera; sprites do this themselves, but the scale
-    // needs the camera distance to stay legible from the hover point.
-    void camera;
   }
 
   dispose(): void {

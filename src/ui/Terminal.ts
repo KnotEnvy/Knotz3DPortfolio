@@ -48,7 +48,7 @@ export class Terminal {
     this.root = el('div', { class: 'terminal', role: 'dialog', 'aria-label': 'Terminal', 'aria-hidden': 'true' }, [
       el('div', { class: 'terminal__bar' }, [
         el('span', { class: 'terminal__dot' }),
-        el('span', { text: 'signal terminal — v3.0' }),
+        el('span', { text: `signal terminal — v${__APP_VERSION__}` }),
       ]),
       this.log,
       form,

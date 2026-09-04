@@ -127,8 +127,57 @@
 
 .bnav__actions {
   display: flex;
+  align-items: center;
   gap: 0.45rem;
   flex: none;
+}
+
+.bnav__contact {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--signal);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--signal) 14%, transparent);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--signal);
+}
+
+.bnav__contact svg {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.btn.is-copied {
+  border-color: var(--live);
+  color: var(--live);
+}
+
+.brief__quote {
+  max-width: 46rem;
+  margin: 1.4rem 0;
+  padding: 0.2rem 0 0.2rem 1.1rem;
+  border-left: 2px solid var(--signal);
+  font-family: var(--font-display);
+  font-size: 1.06rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.brief__quote p {
+  margin: 0;
+}
+
+.brief__quote cite {
+  display: block;
+  margin-top: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-style: normal;
+  color: var(--text-faint);
 }
 
 /* Anchors have to clear the sticky bar or every jump lands under it. */
@@ -262,6 +311,30 @@
 
 .brief__section {
   padding: clamp(2.5rem, 6vw, 4.5rem) 0 0;
+}
+
+/*
+ * On a wide viewport the section heading moves into the left gutter and sticks
+ * while its content scrolls past. Previously every section was a text column
+ * pinned left with a dead third of the page beside it.
+ */
+@media (min-width: 1180px) {
+  .brief__section {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    column-gap: 3rem;
+    align-items: start;
+  }
+
+  .brief__sectionHead {
+    position: sticky;
+    top: 5.5rem;
+    grid-column: 1;
+  }
+
+  .brief__section > *:not(.brief__sectionHead) {
+    grid-column: 2;
+  }
 }
 
 .brief__sectionHead {
@@ -764,7 +837,30 @@
     flex-direction: row;
     align-items: center;
   }
+  /*
+   * The section links stay on a phone — this is the default experience there
+   * and a 23-screen scroll. They move to their own scrollable row instead of
+   * being deleted.
+   */
   .bnav__links {
+    order: 4;
+    flex: 1 1 100%;
+    margin-left: 0;
+    gap: 0.3rem;
+    padding-bottom: 0.15rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bnav__link {
+    border: 1px solid var(--hair);
+    font-size: 0.76rem;
+  }
+
+  .bnav__contact {
+    display: inline-flex;
+  }
+
+  .bnav__print {
     display: none;
   }
 }

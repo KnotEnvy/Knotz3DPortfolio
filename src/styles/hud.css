@@ -126,7 +126,20 @@
   opacity: 1;
 }
 
+/*
+ * The dossier panel occupies the right of the screen and was cutting straight
+ * through the centred objective banner. The panel states the objective itself,
+ * so the banner simply stands down while a dossier is open.
+ */
+.codex-open .hud__top,
+.card-open .obj {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-8px);
+  pointer-events: none;
+}
+
 .hud__top {
+  transition: opacity 0.35s var(--ease), transform 0.35s var(--ease);
   position: absolute;
   top: calc(var(--safe-t) + 4.4rem);
   left: 50%;
@@ -306,6 +319,44 @@
   }
 }
 
+/* ----------------------------------------------------------------- assist */
+
+/*
+ * Shown only when the run has stalled. Someone who has not worked out that they
+ * can shoot gets told, then gets automatic fire, then gets offered the chapter
+ * outright — nobody is locked out of a résumé for being bad at a game.
+ */
+.assist {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--amber);
+  border-radius: var(--r-sm);
+  background: rgba(30, 20, 6, 0.9);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+  animation: objPop 0.5s var(--ease-out);
+}
+
+.assist.on {
+  display: flex;
+}
+
+.assist__text {
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  color: var(--amber);
+}
+
+.assist__skip {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
 /* ------------------------------------------------------------ route spine */
 
 /*
@@ -314,6 +365,7 @@
  * has an end, which is most of why they keep going.
  */
 .spine {
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
   position: absolute;
   left: calc(var(--safe-l) + var(--hud-gap));
   top: 50%;
@@ -369,7 +421,7 @@
 }
 
 .spine__name {
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -413,6 +465,20 @@
 
 /* --------------------------------------------------------- bottom cluster */
 
+/*
+ * A soft darkening gradient behind the bottom cluster. Over a starfield there is
+ * no guaranteed contrast anywhere, and small mono type in the corners was simply
+ * disappearing against bright frames.
+ */
+.hud__bottom::before {
+  content: '';
+  position: absolute;
+  inset: -1.5rem -2rem -2rem -2rem;
+  background: linear-gradient(0deg, rgba(3, 5, 11, 0.72), rgba(3, 5, 11, 0));
+  pointer-events: none;
+  z-index: -1;
+}
+
 .hud__bottom {
   position: absolute;
   left: calc(var(--safe-l) + var(--hud-gap));
@@ -428,6 +494,7 @@
   display: grid;
   gap: 0.35rem;
   min-width: 11rem;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
 
 .rank {
@@ -445,9 +512,9 @@
 }
 
 .rank__xp {
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   letter-spacing: 0.1em;
-  color: var(--text-faint);
+  color: var(--text-dim);
 }
 
 .rank__track {
@@ -470,7 +537,7 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.66rem;
+  font-size: 0.74rem;
   color: var(--text-dim);
 }
 
@@ -510,8 +577,8 @@
 .shards__label {
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  font-size: 0.56rem;
-  color: var(--text-faint);
+  font-size: 0.7rem;
+  color: var(--text-dim);
 }
 
 /* ------------------------------------------------------------ flight data */
@@ -521,17 +588,19 @@
   gap: 0.4rem;
   justify-items: center;
   min-width: 12rem;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
 
 .hull {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
 }
 
 .hull__label {
-  font-size: 0.56rem;
+  font-size: 0.68rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -580,8 +649,8 @@
   display: flex;
   align-items: baseline;
   gap: 0.3rem;
-  font-size: 0.6rem;
-  color: var(--text-faint);
+  font-size: 0.72rem;
+  color: var(--text-dim);
   letter-spacing: 0.1em;
 }
 
@@ -679,13 +748,16 @@
 /* ------------------------------------------------------------------- hint */
 
 .hint {
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.35rem 0.9rem;
-  max-width: 20rem;
-  font-size: 0.62rem;
-  color: var(--text-faint);
+  /* Constrained so the cluster cannot run past the right edge, which clipped
+     "to fire" and "help" at common widths. */
+  max-width: min(22rem, 40vw);
+  font-size: 0.72rem;
+  color: var(--text-dim);
   transition: opacity 0.8s var(--ease);
 }
 
@@ -736,6 +808,10 @@
 .boot__inner {
   position: relative;
   width: min(46rem, 100%);
+  /* Grid items default to min-width:auto, so without this the beats grid's
+     min-content width (~570px) forces the whole card wider than the viewport
+     and the hero gets clipped with no way to scroll to it. */
+  min-width: 0;
   text-align: center;
 }
 
@@ -808,7 +884,7 @@
 
 .boot__beats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
   gap: 0.7rem;
   max-width: 44rem;
   margin: 2rem auto 1.9rem;
@@ -1005,10 +1081,10 @@
 .ov__scrim {
   position: absolute;
   inset: 0;
-  background: rgba(3, 5, 11, 0.72);
+  background: rgba(3, 5, 11, 0.82);
   backdrop-filter: blur(6px);
   opacity: 0;
-  transition: opacity 0.25s var(--ease);
+  transition: opacity 0.18s var(--ease);
 }
 
 .ov.on .ov__scrim {
@@ -1036,7 +1112,10 @@
   backdrop-filter: blur(18px);
   box-shadow: var(--shadow-lg);
   opacity: 0;
-  transition: opacity 0.25s var(--ease), transform 0.3s var(--ease-out);
+  /* Delayed so the backdrop is already down before the content arrives. */
+  transition:
+    opacity 0.24s var(--ease) 0.1s,
+    transform 0.3s var(--ease-out) 0.1s;
   font-family: var(--font-body);
 }
 
@@ -1174,6 +1253,12 @@
 
 .ov__foot .btn--ghost {
   margin-left: auto;
+}
+
+.ov__foot .btn--ghost.armed {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: rgba(255, 77, 94, 0.12);
 }
 
 /* Sector index */
@@ -1320,8 +1405,13 @@
   z-index: 14;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
-  padding: 0 calc(var(--safe-r) + 1rem) calc(var(--safe-b) + 5.6rem) calc(var(--safe-l) + 1rem);
+  /* The drag hint used to sit bottom-left, in the same band as the HUD's shard
+     counter, and the two rendered straight through each other. It gets its own
+     row above the boost button now. */
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6rem;
+  padding: 0 calc(var(--safe-r) + 1rem) calc(var(--safe-b) + 7.5rem) calc(var(--safe-l) + 1rem);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.4s var(--ease);

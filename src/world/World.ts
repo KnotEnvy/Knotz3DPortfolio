@@ -114,7 +114,6 @@ export class World {
     elapsed: number,
     dt: number,
     ship: Ship,
-    camera: THREE.PerspectiveCamera,
     pixelRatio: number,
   ): THREE.Color {
     this.starfield.update(elapsed, pixelRatio);
@@ -140,7 +139,7 @@ export class World {
     setHullFog(this.fog.color, this.fog.density);
 
     for (const s of this.sectors) {
-      s.update(elapsed, dt, ship.object.position, camera);
+      s.update(elapsed, dt, ship.object.position);
     }
 
     return accent;

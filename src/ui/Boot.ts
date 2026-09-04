@@ -56,7 +56,7 @@ export class Boot {
         el('ol', { class: 'boot__beats' }, [
           beat('01', 'Fly the corridor', 'Six sectors. Your cursor is the stick.'),
           beat('02', 'Clear the resistance', 'Shoot what shoots back. You cannot lose.'),
-          beat('03', 'Break the node', 'Each one you crack opens a chapter of the résumé.'),
+          beat('03', 'Break the node', 'It drops data shards — the résumé, one chapter at a time.'),
         ]),
 
         el('div', { class: 'boot__actions' }, [
@@ -70,7 +70,11 @@ export class Boot {
         ]),
         el('p', {
           class: 'boot__alt',
-          text: 'The brief is the whole CV as a normal page — same facts, no flying. Nothing is hidden behind the game.',
+          // An honest time estimate is the cheapest way to stop a busy person
+          // bouncing: the reason they leave is usually not disinterest, it is
+          // not knowing what they are committing to.
+          text:
+            'About ten minutes to fly, or three to read. The brief is the whole CV as a normal page — same facts, no flying, nothing held back.',
         }),
         el('div', { class: 'boot__progress' }, [this.progress]),
         this.status,
@@ -92,9 +96,25 @@ export class Boot {
 
   focus(): void {
     this.launchBtn.focus();
+    this.setSiblingsInert(true);
+  }
+
+  /**
+   * The title card covers the whole viewport, but the HUD and toolbar behind it
+   * are still in the tab order — two presses of Tab from the Launch button
+   * landed on invisible controls.
+   */
+  private setSiblingsInert(on: boolean): void {
+    const parent = this.root.parentElement;
+    if (!parent) return;
+    for (const child of Array.from(parent.children)) {
+      if (child === this.root) continue;
+      (child as HTMLElement).inert = on;
+    }
   }
 
   hide(): void {
+    this.setSiblingsInert(false);
     this.root.classList.add('out');
     window.setTimeout(() => {
       this.root.hidden = true;
@@ -103,6 +123,7 @@ export class Boot {
 
   show(): void {
     this.root.hidden = false;
+    this.setSiblingsInert(true);
     requestAnimationFrame(() => this.root.classList.remove('out'));
   }
 }

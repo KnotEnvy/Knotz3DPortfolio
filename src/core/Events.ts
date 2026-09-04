@@ -13,6 +13,10 @@ export interface AppEvents {
   'enemy:killed': { xp: number };
   'player:hit': { integrity: number };
   'dossier:continue': void;
+  /** The run has stalled; the interface should start helping. */
+  'assist:hint': { text: string };
+  'assist:autofire': void;
+  'assist:skip': { on: boolean };
   'xp:change': { xp: number; level: number; rank: string; pct: number };
   'achievement': { id: string; name: string; note: string };
   'mode:brief': { on: boolean };

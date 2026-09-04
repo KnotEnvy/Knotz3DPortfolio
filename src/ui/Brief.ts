@@ -1,6 +1,36 @@
 import { el, icons, inline } from './dom';
 import { profile } from '../data/profile';
-import { ventures, projects, career, education, services, skillGroups } from '../data/content';
+import { ventures, projects, career, careerNote, education, services, skillGroups } from '../data/content';
+import { sectorById, type Block, type SectorId } from '../data/sectors';
+
+/**
+ * Render a sector's "classified" bonus blocks into the brief.
+ *
+ * In the 3D experience these unlock when a node breaks. The title card promises
+ * "nothing is hidden behind the game", and until this existed that was not true:
+ * the sharpest paragraph on the whole site — how Jay actually picks and
+ * evaluates a model — was reachable only by winning a fight, and appeared
+ * nowhere in the document.
+ */
+function bonus(id: SectorId): Node[] {
+  const def = sectorById.get(id);
+  if (!def) return [];
+  return def.bonus.flatMap((b: Block): Node[] => {
+    if (b.t === 'para') return [el('p', { class: 'brief__para', html: inline(b.text) })];
+    if (b.t === 'quote') {
+      return [
+        el('blockquote', { class: 'brief__quote' }, [
+          el('p', { html: inline(b.text) }),
+          b.by ? el('cite', { text: `— ${b.by}` }) : null,
+        ]),
+      ];
+    }
+    if (b.t === 'list') {
+      return [el('ul', { class: 'brief__list' }, b.items.map((i) => el('li', { html: inline(i) })))];
+    }
+    return [];
+  });
+}
 
 export interface BriefHandlers {
   launch(): void;
@@ -26,6 +56,7 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
         el('span', { text: profile.email }),
       ]),
       el('a', { class: 'btn', href: 'tel:+13863015775', text: profile.phone }),
+      copyButton(),
       el('a', { class: 'btn', href: profile.github, target: '_blank', rel: 'noopener noreferrer', text: 'GitHub' }),
       el('a', { class: 'btn', href: profile.linkedin, target: '_blank', rel: 'noopener noreferrer', text: 'LinkedIn' }),
     ]);
@@ -54,6 +85,13 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
         navLinks.map(([href, label]) => el('a', { class: 'bnav__link', href, text: label })),
       ),
       el('div', { class: 'bnav__actions' }, [
+        // On a phone the brief *is* the site, and it is a twenty-three-screen
+        // scroll. Getting to the contact details must never require thumbing
+        // past all of it.
+        el('a', { class: 'bnav__contact', href: '#brief-contact' }, [
+          el('span', { html: icons.mail }),
+          el('span', { text: 'Contact' }),
+        ]),
         // The whole reason the game exists is that it is the strongest single
         // piece of evidence. Offer it, do not force it.
         handlers
@@ -63,7 +101,7 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
             ])
           : null,
         el('button', {
-          class: 'btn btn--sm btn--ghost',
+          class: 'btn btn--sm btn--ghost bnav__print',
           type: 'button',
           text: 'Print / PDF',
           onclick: () => window.print(),
@@ -115,6 +153,7 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
         el('div', { class: 'brief__value' }, [el('h3', { text: v.k }), el('p', { html: inline(v.v) })]),
       ),
     ),
+    ...bonus('origin'),
   ]);
 
   /* ----------------------------------------------------------- ventures */
@@ -154,6 +193,7 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
   const liveCount = projects.filter((p) => p.live).length;
 
   const workSection = section('brief-work', 'Selected work', 'Thirty-odd public repositories; these are the ones worth your time', [
+    ...bonus('arcade'),
     el('p', { class: 'brief__para brief__lead', text: `${spell(liveCount)} of these are running in a browser right now — no install, no account. Press the live link and judge the work directly; that is what it is there for.` }),
     el(
       'div',
@@ -197,6 +237,7 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
   /* ----------------------------------------------------------- services */
 
   const servicesSection = section('brief-services', 'How I can help', 'Four ways this usually starts', [
+    ...bonus('forge'),
     el(
       'div',
       { class: 'brief__grid brief__grid--two' },
@@ -214,6 +255,8 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
   /* --------------------------------------------------------- experience */
 
   const experience = section('brief-experience', 'Experience', 'Fifteen years of operating, most of it before the code', [
+    el('p', { class: 'brief__para brief__lead', text: careerNote }),
+    ...bonus('track'),
     el(
       'div',
       { class: 'brief__timeline' },
@@ -284,6 +327,35 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
       ]),
     ]),
   ]);
+}
+
+/**
+ * Copy the address to the clipboard.
+ *
+ * A `mailto:` link is a dead click for anyone living in webmail, which is most
+ * of the business owners this page is written for.
+ */
+function copyButton(): HTMLElement {
+  const btn = el('button', { class: 'btn btn--ghost', type: 'button' }, [
+    el('span', { html: icons.copy }),
+    el('span', { text: 'Copy address' }),
+  ]) as HTMLButtonElement;
+  const label = btn.lastElementChild as HTMLElement;
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(profile.email);
+      label.textContent = 'Copied';
+    } catch {
+      // Clipboard access can be refused outright; say so rather than lying.
+      label.textContent = profile.email;
+    }
+    btn.classList.add('is-copied');
+    window.setTimeout(() => {
+      label.textContent = 'Copy address';
+      btn.classList.remove('is-copied');
+    }, 2200);
+  });
+  return btn;
 }
 
 /** Small numbers read better as words in body copy. */

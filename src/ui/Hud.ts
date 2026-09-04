@@ -49,6 +49,9 @@ export class Hud {
   private reticle: HTMLElement;
   private hint: HTMLElement;
 
+  private assist: HTMLElement;
+  private assistText: HTMLElement;
+  private skipBtn: HTMLButtonElement;
   private lastTitle = '';
   private lastDetail = '';
   private lastPhase = '';
@@ -82,7 +85,7 @@ export class Hud {
 
     /* -------------------------------------------------------- spine */
     this.spineFill = el('i');
-    const dots = sectors.map((s, i) => {
+    const dots = sectors.map((s) => {
       const dot = el('button', {
         class: 'spine__dot',
         type: 'button',
@@ -94,7 +97,6 @@ export class Hud {
         el('span', { class: 'spine__name', text: s.name }),
       ]);
       this.spineDots.push(dot);
-      void i;
       return dot;
     });
     this.spine = el('nav', { class: 'spine', 'aria-label': 'Route progress' }, [
@@ -125,6 +127,18 @@ export class Hud {
       el('span', { class: 'reticle__tick reticle__tick--r' }),
     ]);
 
+    // Escalating help for a stalled run. Hidden until the director asks for it.
+    this.assist = el('div', { class: 'assist', role: 'status' }, [
+      el('span', { class: 'assist__text' }),
+    ]);
+    this.assistText = this.assist.querySelector('.assist__text') as HTMLElement;
+    this.skipBtn = el('button', {
+      class: 'btn btn--sm assist__skip',
+      type: 'button',
+      text: 'Open the dossier anyway',
+    }) as HTMLButtonElement;
+    this.assist.append(this.skipBtn);
+
     this.hint = el('div', { class: 'hint' }, coarse
       ? [
           el('span', { text: 'Drag to fly' }),
@@ -140,7 +154,7 @@ export class Hud {
 
     this.root = el('div', { class: 'hud' }, [
       this.reticle,
-      el('div', { class: 'hud__top' }, [this.objective, this.boss]),
+      el('div', { class: 'hud__top' }, [this.objective, this.boss, this.assist]),
       this.spine,
       el('div', { class: 'hud__bottom' }, [
         el('div', { class: 'stats' }, [
@@ -160,6 +174,8 @@ export class Hud {
       ]),
     ]);
 
+    this.skipBtn.hidden = true;
+
     parent.append(this.root);
 
     bus.on('xp:change', () => this.syncStats());
@@ -168,6 +184,19 @@ export class Hud {
       this.pop(this.shardCount);
     });
     this.syncStats();
+  }
+
+  /** Show or clear the stall hint. */
+  setAssist(text: string | null): void {
+    this.assistText.textContent = text ?? '';
+    this.assist.classList.toggle('on', !!text || !this.skipBtn.hidden);
+  }
+
+  /** Offer the escape hatch out of a fight the visitor cannot win. */
+  setSkipOffer(on: boolean, fn?: () => void): void {
+    this.skipBtn.hidden = !on;
+    if (on && fn) this.skipBtn.onclick = fn;
+    this.assist.classList.toggle('on', on || !!this.assistText.textContent);
   }
 
   /** Wire the route spine's dots as jump buttons. */

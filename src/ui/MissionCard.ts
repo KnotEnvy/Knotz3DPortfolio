@@ -63,8 +63,14 @@ export class MissionCard {
     void this.root.offsetWidth;
     this.root.classList.add('on');
 
+    // The card and the objective banner carried identical text at the same
+    // moment. The banner stands down while the card is up.
+    document.body.classList.add('card-open');
     window.clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => this.root.classList.remove('on'), 3600);
+    this.timer = window.setTimeout(() => {
+      this.root.classList.remove('on');
+      document.body.classList.remove('card-open');
+    }, 3600);
   }
 
   setAccent(color: number): void {
@@ -74,5 +80,6 @@ export class MissionCard {
   hide(): void {
     window.clearTimeout(this.timer);
     this.root.classList.remove('on');
+    document.body.classList.remove('card-open');
   }
 }

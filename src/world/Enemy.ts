@@ -33,7 +33,9 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
   const glows: THREE.MeshBasicMaterial[] = [];
   const spin: THREE.Object3D[] = [];
 
-  const shell = keep(hullMaterial({ color, base: 0x1a1020, rim: 1.9, power: 1.8, glow: 0.12 }));
+  // Hot rim, near-black body, and a white-hot eye. Hostiles have to separate
+  // from a sector's own colour scheme at a glance and at distance.
+  const shell = keep(hullMaterial({ color, base: 0x1c0a08, rim: 2.4, power: 1.5, glow: 0.16 }));
   mats.push(shell);
 
   const eye = (r: number, z: number, c = 0xffffff) => {
@@ -150,6 +152,46 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
       break;
     }
   }
+
+  // A camera-facing halo so a hostile is findable even when it is small, far
+  // away, or silhouetted against a bright structure. This is the single biggest
+  // readability win available and it costs one extra quad per enemy.
+  const haloMat = keep(
+    new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: new THREE.Color(color) } },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          // Billboard: strip rotation from the model-view matrix so the quad
+          // always faces the camera regardless of how the hull is oriented.
+          vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+          mv.xy += position.xy;
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        void main() {
+          float r = length(vUv - 0.5) * 2.0;
+          if (r > 1.0) discard;
+          // A soft ring rather than a disc, so it frames the hull instead of
+          // hiding it.
+          float ring = smoothstep(0.55, 0.86, r) * smoothstep(1.0, 0.88, r);
+          float core = pow(1.0 - r, 5.0) * 0.35;
+          float a = ring * 0.7 + core;
+          gl_FragColor = vec4(uColor * (ring * 2.2 + core * 3.0), a);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  const halo = new THREE.Mesh(keep(new THREE.PlaneGeometry(9, 9)), haloMat);
+  group.add(halo);
 
   group.scale.setScalar(size / 2.6);
 

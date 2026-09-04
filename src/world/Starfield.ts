@@ -64,12 +64,14 @@ export class Starfield {
       pos[i * 3 + 2] = rnd() * -2600 + 400;
 
       const c = palette[(rnd() * palette.length) | 0];
-      const dim = 0.3 + rnd() * 0.5;
+      const dim = 0.26 + rnd() * 0.44;
       col[i * 3 + 0] = c.r * dim;
       col[i * 3 + 1] = c.g * dim;
       col[i * 3 + 2] = c.b * dim;
 
-      size[i] = 0.5 + rnd() * rnd() * 2.2;
+      // Minimum size matters: a star smaller than a pixel cannot be
+      // antialiased or fringed cleanly, it just flickers and aliases.
+      size[i] = 1.2 + rnd() * rnd() * 2.8;
       phase[i] = rnd() * Math.PI * 2;
     }
 

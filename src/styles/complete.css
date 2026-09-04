@@ -1,4 +1,13 @@
-.done {
+/*
+ * Completion overlay.
+ *
+ * Namespaced `finale`, not `done`. A bare `.done` here previously matched
+ * the HUD route spine (`.spine__dot.done`) and the pause panel's sector
+ * status (`.jump__state.done`), and because this file is imported after
+ * hud.css it won: cleared sectors became fixed-position, zero-opacity boxes
+ * and the progress spine visibly lost a pip every time the player succeeded.
+ */
+.finale {
   position: fixed;
   inset: 0;
   z-index: 36;
@@ -12,7 +21,7 @@
   transition: opacity 0.5s var(--ease), visibility 0s 0.5s;
 }
 
-.done.on {
+.finale.on {
   opacity: 1;
   visibility: visible;
   transition: opacity 0.5s var(--ease), visibility 0s;
@@ -31,7 +40,7 @@
   transition: transform 0.5s var(--ease);
 }
 
-.done.on .done__card {
+.finale.on .done__card {
   transform: none;
 }
 

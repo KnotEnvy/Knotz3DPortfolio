@@ -70,6 +70,8 @@ class App {
 
   private running = false;
   private paused = false;
+  /** True when the pause was imposed by the tab going to the background. */
+  private hiddenPause = false;
   private briefMode = false;
   private accumulator = 0;
   private elapsed = 0;
@@ -78,7 +80,6 @@ class App {
   private hintTimer = 0;
   private hintRetired = false;
   private accent = new THREE.Color(0x4de1c1);
-  private tmp = new THREE.Vector3();
   /** Hull integrity at the moment the current node was armed, for 'Unshaken'. */
   private hullAtNode = 1;
 
@@ -150,7 +151,12 @@ class App {
       warp: (id) => this.warpTo(id),
       brief: (on) => this.setBrief(on),
       reset: () => this.resetProgress(),
-      dossier: (id) => this.codex.open(id, false),
+      dossier: (id) => {
+        // Close the terminal first: it sits above the dossier and keeps focus,
+        // so the panel opened invisibly behind it.
+        this.terminal.toggle(false);
+        this.codex.open(id, false);
+      },
     });
 
     this.topbar = new TopBar(
@@ -194,9 +200,14 @@ class App {
     this.tick(this.lastFrame);
 
     // Reduced motion, or a phone: hand over the document instead.
+    //
+    // Reduced motion is checked on every visit, not only the first. Someone who
+    // asked their operating system for less motion did not stop meaning it
+    // because they have been here before, and this experience is camera shake,
+    // screen punch and chromatic aberration from end to end.
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const smallTouch = this.input.coarse && Math.min(window.innerWidth, window.innerHeight) < 820;
-    if ((reduce || smallTouch) && !this.state.data.seenIntro) this.setBrief(true);
+    if (reduce || (smallTouch && !this.state.data.seenIntro)) this.setBrief(true);
     else this.boot.focus();
   }
 
@@ -220,6 +231,16 @@ class App {
       if (def) document.documentElement.style.setProperty('--accent', `#${def.color.toString(16).padStart(6, '0')}`);
     });
 
+    bus.on('assist:hint', ({ text }) => this.hud.setAssist(text));
+    bus.on('assist:autofire', () => {
+      this.toasts.push('Auto-fire engaged', 'Your guns will fire on their own from here', 'shard');
+      this.hud.setAssist('Auto-fire engaged — steer with the mouse');
+    });
+    bus.on('assist:skip', ({ on }) => {
+      this.hud.setSkipOffer(on, () => this.director.skipToDossier(this.ship));
+      if (!on) this.hud.setAssist(null);
+    });
+
     bus.on('wave:spawn', () => {
       this.audio.setIntensity(0.85);
       this.audio.alarm();
@@ -234,19 +255,24 @@ class App {
     bus.on('sector:decrypted', ({ id }) => {
       this.audio.nodeBreak();
       this.rig.addShake(1.1, 1.2);
-      this.engine.punch(0.9);
+      this.engine.punch(0.55);
       this.state.recordNode(this.hullAtNode >= 0.999);
-      // Let the detonation land before the panel takes the screen.
+      // Let the detonation land before the panel takes the screen. Shortened
+      // from 1.5s: the objective already reads "Dossier recovered — read it,
+      // then continue", and pointing at a panel that does not exist yet is
+      // worse than a slightly hurried transition.
       window.setTimeout(() => {
         if (!this.briefMode) this.codex.open(id, true);
-      }, 1500);
+      }, 850);
     });
 
     bus.on('codex:open', () => {
       this.audio.setIntensity(0.3);
+      document.body.classList.add('codex-open');
     });
     bus.on('codex:close', () => {
       this.audio.setIntensity(0.6);
+      document.body.classList.remove('codex-open');
     });
 
     bus.on('complete', () => {
@@ -259,10 +285,22 @@ class App {
     document.addEventListener('keydown', (e) => this.onKey(e));
 
     document.querySelector('.skip')?.addEventListener('click', () => this.setBrief(true));
+    // A backgrounded tab should not keep flying and firing — but coming back
+    // must resume. An earlier version only reset the clock on return and left
+    // `paused` set, so anyone who checked a message mid-run came back to a live
+    // HUD over a ship that would never move again.
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) this.lastFrame = performance.now();
-      // A backgrounded tab should not keep firing guns.
-      else if (this.running) this.pauseForPanel();
+      if (document.hidden) {
+        if (this.running) this.hiddenPause = this.paused = true;
+        return;
+      }
+      this.lastFrame = performance.now();
+      // Only lift the pause we imposed. A panel the visitor opened themselves
+      // stays open.
+      if (this.hiddenPause && !this.overlay.isOpen) {
+        this.hiddenPause = false;
+        this.paused = false;
+      }
     });
   }
 
@@ -362,6 +400,7 @@ class App {
 
   private resumeFromPause(): void {
     this.paused = false;
+    this.hiddenPause = false;
     this.lastFrame = performance.now();
   }
 
@@ -421,6 +460,11 @@ class App {
     this.audio.boost();
     this.particles.clear();
     this.impacts.clear();
+    // Otherwise shards released in the sector you just left home in on the ship
+    // from a kilometre away.
+    this.pickups.clear();
+    this.hud.setAssist(null);
+    this.hud.setSkipOffer(false);
     this.running = true;
     this.paused = false;
     this.hud.setVisible(true);
@@ -457,7 +501,10 @@ class App {
       while (this.accumulator >= FIXED_STEP && steps < MAX_STEPS) {
         const input = this.input.sample(controls);
         this.ship.step(input, FIXED_STEP, this.elapsed, this.world.route);
-        this.combat.shoot(this.ship, FIXED_STEP, input.fire && !this.ship.hold);
+        // The stall assist can take over the trigger for a visitor who never
+        // worked out that they can shoot.
+        const firing = (input.fire || this.director.autoFire) && !this.ship.hold;
+        this.combat.shoot(this.ship, FIXED_STEP, firing);
         this.combat.update(FIXED_STEP, this.elapsed, this.ship);
         this.director.update(FIXED_STEP, this.ship);
         this.accumulator -= FIXED_STEP;
@@ -493,7 +540,7 @@ class App {
     this.particles.update(dt);
     this.impacts.update(dt, this.engine.camera);
 
-    const accent = this.world.update(this.elapsed, dt, this.ship, this.engine.camera, this.engine.renderer.getPixelRatio());
+    const accent = this.world.update(this.elapsed, dt, this.ship, this.engine.renderer.getPixelRatio());
     this.accent.copy(accent);
 
     if (this.running) {
@@ -543,7 +590,6 @@ class App {
     this.impacts.dispose();
     this.audio.dispose();
     this.engine.dispose();
-    void this.tmp;
   }
 }
 
