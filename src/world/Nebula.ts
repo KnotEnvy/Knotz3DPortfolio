@@ -119,13 +119,40 @@ const FRAG = /* glsl */ `
     float ridge = 1.0 - abs(wisp * 2.0 - 1.0);
     ridge = pow(clamp(ridge, 0.0, 1.0), 3.5) * cloud;
 
-    // A horizon-ish gradient gives the corridor an implied up.
-    float band = smoothstep(-0.8, 0.6, d.y);
+    /*
+     * The galactic band.
+     *
+     * This is the difference between "a noise field" and "a place". A nebula
+     * field with even coverage reads as haze no matter how much structure the
+     * fbm carries, because nothing in it establishes an orientation or a scale
+     * — the eye has no lane to follow. Real skies have a plane: a dense, tilted
+     * belt of dust running across them, thinning out either side. Concentrating
+     * the same amount of cloud into a belt costs nothing extra and gives the
+     * corridor an implied up, a horizon and a direction of travel.
+     *
+     * Tilted off-axis so it never looks like a horizontal gradient, and
+     * softened by the noise itself so the edges are ragged rather than banded.
+     */
+    vec3 planeAxis = normalize(vec3(0.19, 0.94, -0.28));
+    float off = dot(d, planeAxis);
+    float belt = 1.0 - smoothstep(0.0, 0.62, abs(off) - wisp * 0.13);
+    belt = pow(clamp(belt, 0.0, 1.0), 1.6);
 
-    vec3 col = uDeep * (0.7 + band * 0.5);
-    col += uColorA * cloud * 0.85;
-    col += uColorB * hot * 0.7;
-    col += uColorB * ridge * 0.45;
+    // Voids matter as much as clouds: without genuinely empty sky the belt has
+    // nothing to be dense against.
+    cloud *= 0.28 + belt * 1.15;
+    hot *= 0.2 + belt * 1.5;
+    ridge *= 0.25 + belt * 1.4;
+
+    // A cool rim well off the plane, so the empty half of the sky is not simply
+    // black — it is the far side of the same volume.
+    float rim = pow(clamp(abs(off), 0.0, 1.0), 2.2) * 0.16;
+
+    vec3 col = uDeep * (0.68 + belt * 0.55);
+    col += uColorA * cloud * 1.05;
+    col += uColorA * rim;
+    col += uColorB * hot * 0.95;
+    col += uColorB * ridge * 0.6;
 
     // Distant unresolved star haze, dense enough to imply depth. Kept under the
     // bloom threshold so it stays as pinpricks rather than smearing.

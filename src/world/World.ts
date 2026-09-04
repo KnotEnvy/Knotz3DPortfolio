@@ -14,6 +14,27 @@ import { setHullFog } from '../shaders/hull';
 
 const WHITE = new THREE.Color(0xffffff);
 
+/*
+ * The emission hue for each sector's nebula — the colour of the hot filament
+ * cores, deliberately NOT the sector accent.
+ *
+ * The sky used to take one accent and tint the whole thing with it, twice: a
+ * dim version for the cloud and a whitened version for the cores. That is why
+ * reviewers kept describing the backdrop as haze — a single-hue field has no
+ * internal contrast, so however much structure the noise carries, the eye reads
+ * one flat wash. Real nebulae separate by hue, because the cold dust and the
+ * ionised cores are genuinely different emissions. Giving each sector a second,
+ * contrasting hue is what turns the noise into something painted.
+ */
+const EMISSION: Record<SectorId, number> = {
+  origin: 0xff3d81,
+  ventures: 0x5b9cff,
+  forge: 0xffb454,
+  arcade: 0x4de1c1,
+  track: 0xff6a3d,
+  uplink: 0x8b5cf6,
+};
+
 /** Deep-space base colours per sector, behind the nebula's accent clouds. */
 const DEEP: Record<SectorId, number> = {
   origin: 0x050a14,
@@ -53,6 +74,7 @@ export class World {
   private deep = new THREE.Color();
   private cloud = new THREE.Color();
   private hotCloud = new THREE.Color();
+  private emission = new THREE.Color();
   private fogTint = new THREE.Color();
   private fog: THREE.FogExp2;
 
@@ -115,7 +137,8 @@ export class World {
     this.colB.set(sectorDefs[b].color);
     this.accent.copy(this.colA).lerp(this.colB, f);
     this.deep.set(DEEP[sectorDefs[a].id]).lerp(new THREE.Color(DEEP[sectorDefs[b].id]), f);
-    return { accent: this.accent, deep: this.deep, hot: this.colB };
+    this.emission.set(EMISSION[sectorDefs[a].id]).lerp(new THREE.Color(EMISSION[sectorDefs[b].id]), f);
+    return { accent: this.accent, deep: this.deep, hot: this.emission };
   }
 
   update(
@@ -129,15 +152,16 @@ export class World {
     this.corridor.update(elapsed);
     this.environment.update(elapsed);
 
-    const { accent, deep } = this.paletteAt(ship.distance);
+    const { accent, deep, hot } = this.paletteAt(ship.distance);
 
-    // The sky takes a heavily dimmed sector accent for its clouds and a slightly
-    // hotter one for the filaments. Both are scaled well down: the backdrop has
-    // to sit *below* the bloom threshold or it drags the whole frame with it.
-    // Scaled so the brightest cloud sits just under the bloom threshold: the
-    // nebula is depth, not a light source.
-    this.cloud.copy(accent).multiplyScalar(0.5);
-    this.hotCloud.copy(accent).lerp(WHITE, 0.4).multiplyScalar(0.72);
+    // Both stay under the bloom threshold — the backdrop is depth, not a light
+    // source, and lifting it drags the whole frame into a pale wash. The reason
+    // the sky now reads as more than haze is not brightness but hue separation:
+    // the broad cold cloud takes the sector accent, the hot filament cores take
+    // a contrasting emission hue, and the difference between them is what the
+    // eye reads as structure.
+    this.cloud.copy(accent).multiplyScalar(0.46);
+    this.hotCloud.copy(hot).lerp(WHITE, 0.18).multiplyScalar(0.62);
     this.nebula.setPalette(this.cloud.getHex(), this.hotCloud.getHex(), deep.getHex());
     this.nebula.update(elapsed, dt, ship.object.position);
 

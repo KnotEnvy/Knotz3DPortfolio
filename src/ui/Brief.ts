@@ -116,7 +116,13 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
     el('div', { class: 'brief__heroMain' }, [
       el('p', { class: 'brief__kicker' }, [
         el('span', { class: 'brief__kickerDot' }),
-        el('span', { text: `${profile.title} · ${profile.location}` }),
+        // Each role is one unbreakable token. Left to wrap freely, the widest
+        // mono strapline splits mid-phrase on a phone — "GAME / DEVELOPER" —
+        // which reads as a layout accident rather than a list.
+        ...`${profile.title} · ${profile.location}`.split(' · ').flatMap((part, i) => [
+          i ? el('span', { class: 'brief__kickerSep', text: '·' }) : null,
+          el('span', { class: 'brief__kickerPart', text: part }),
+        ]).filter(Boolean) as HTMLElement[],
       ]),
       el('h1', { class: 'brief__name', text: profile.name }),
       el('p', { class: 'brief__tag', text: profile.tagline }),

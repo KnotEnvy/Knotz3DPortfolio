@@ -103,6 +103,35 @@
   margin-left: auto;
   overflow-x: auto;
   scrollbar-width: none;
+  /*
+   * The scrollbar is hidden, so on a narrow viewport the last chip was simply
+   * guillotined at the frame edge with nothing to say the row continues — it
+   * read as a layout bug rather than as a scroller. Fading the last few
+   * millimetres turns the same clip into an affordance. The mask only applies
+   * where there is actually overflow to hint at, so the desktop row, which
+   * fits, keeps its chips at full strength.
+   */
+  mask-image: linear-gradient(90deg, #000 calc(100% - 2.2rem), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 2.2rem), transparent 100%);
+  padding-right: 1.6rem;
+}
+
+@media (min-width: 861px) {
+  .bnav__links {
+    mask-image: none;
+    -webkit-mask-image: none;
+    padding-right: 0;
+  }
+}
+
+/* Roles never split across a line; the row wraps between them instead. */
+.brief__kickerPart {
+  white-space: nowrap;
+}
+
+.brief__kickerSep {
+  margin: 0 0.4em;
+  opacity: 0.55;
 }
 
 .bnav__links::-webkit-scrollbar {
@@ -202,6 +231,10 @@
   /* Wraps to two lines on a phone; centring pulled the dot onto the first
      letter of the second line. */
   align-items: flex-start;
+  /* The roles are separate flex items so each stays whole, which means this
+     row has to be allowed to wrap between them — without it the strapline is
+     one unbreakable line that runs straight off a phone. */
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin: 0 0 1.1rem;
   font-family: var(--font-mono);
