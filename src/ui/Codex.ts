@@ -200,7 +200,12 @@ export class Codex {
     const SCROLL: Record<string, number> = {
       ArrowDown: 120, ArrowUp: -120, PageDown: 1, PageUp: -1, Home: -1e9, End: 1e9,
     };
-    if (e.key in SCROLL && this.body.contains(document.activeElement)) {
+    // Anywhere inside the panel, not just inside the scroll pane. Focus lands on
+    // Continue when a node breaks, so requiring focus to be in the pane meant
+    // the arrow keys did nothing at the exact moment the dossier opens — the
+    // one moment a reader is certain to press them. It also raced the deferred
+    // focus, which is how this passed a test run and failed the next.
+    if (e.key in SCROLL && this.isOpen && this.root.contains(document.activeElement)) {
       const step = e.key === 'PageDown' || e.key === 'PageUp'
         ? SCROLL[e.key] * this.body.clientHeight * 0.85
         : SCROLL[e.key];

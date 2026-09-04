@@ -172,7 +172,24 @@ The absolute `og:image`, `og:url`, `canonical` and JSON-LD `url` in `index.html`
 all point at the Vercel URL — social scrapers need absolute paths. If the site
 moves to a custom domain, update those and the `seo` block in `handoff.json`.
 
-## Handoff
+## How this was built
+
+Written with AI assistance, directed and reviewed by me, start to finish.
+
+That is not a disclaimer, it is the point. I sell AI systems to people who run
+real businesses, and the honest version of that pitch is not "a machine wrote
+it while I watched". Every decision here — the rail instead of free flight, the
+résumé as the reward rather than the decoration, defaulting phones to the
+written brief, the assist ladder that eventually plays the game for you rather
+than letting a non-gamer hit a wall — is mine, and so is every judgement about
+what was good enough to keep. The engine is raw Three.js with one runtime
+dependency, and I can walk you through any file in it.
+
+What the tooling bought was iteration speed: the whole thing went through five
+rounds of adversarial review, and the regression suite in `scripts/smoke.mjs`
+exists because a shader silently failed to compile for two of them and nothing
+behavioural caught it. Each check in that file is annotated with the specific
+bug it exists to prevent. That is the working style you are hiring.
 
 `handoff.json` is the state-of-the-project record: what is deployed where, what
 is still open, which content is unverified, and the decisions behind the build.

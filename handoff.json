@@ -242,11 +242,6 @@
       "item": "This branch has not been merged or deployed. After merging, redeploy Vercel (automatic on push to main) AND GitHub Pages (`npm run deploy`, which is NOT automatic), then re-verify both against a local build."
     },
     {
-      "id": "handoff-visibility",
-      "priority": "medium",
-      "item": "This file is committed to a public repository and names an agent as author of record, on a site whose central claim is that Jay wrote the engine. Decide whether it stays public, has its attribution trimmed, or moves out of the published repo. Flagged during review; the call is the owner’s."
-    },
-    {
       "id": "art-direction",
       "priority": "medium",
       "item": "Reviewers rate the look as a well-executed take on a familiar neon idiom rather than something visually novel. Round-3 remediation closed the concrete defects — the nebula renders, the sky has parallax, threat markers read over bloom, panel lines carry at distance — so what is left here is art direction rather than bugs: a distinctive material or lighting idea, or a less trodden palette."
@@ -269,7 +264,8 @@
     "Several bugs in this rebuild were of one shape: a factor in an alpha or intensity product silently going to zero, leaving an element rendering as nothing while looking correct in code. When something is invisible, check for a zeroed term before doubting the geometry.",
     "#ui is a stack of fixed full-viewport layers over the canvas, and any one of them that takes pointer events becomes an invisible shield over everything beneath. base.css therefore lists which layers take pointers and defaults the rest to none. A new layer left off that list is visibly broken; a new layer wrongly added to it breaks everything under it silently. Three smoke checks assert the outcome.",
     "Chromium interpolates a CSS transition or keyframe between a bare hex and a color-mix() through oklab(), and out-of-gamut midpoints can clip to a completely wrong hue — a violet objective card rendered a pure green ring for a whole animation. Both ends of any animated colour must be written with the same colour function.",
-    "Adding a uniform to a ShaderMaterial's uniforms object does not declare it in the GLSL. Miss the declaration and the shader fails to compile, the material draws nothing, and the game plays and reports identically — it looks like a tuning problem, not a broken shader. Check the console before tuning any effect that looks weak."
+    "Adding a uniform to a ShaderMaterial's uniforms object does not declare it in the GLSL. Miss the declaration and the shader fails to compile, the material draws nothing, and the game plays and reports identically — it looks like a tuning problem, not a broken shader. Check the console before tuning any effect that looks weak.",
+    "Emissive intensity is a deliberate hierarchy, not per-object taste: threats brightest (Enemy rim 2.4), then the ship (1.7), then the objective landmark (1.5), then scenery (0.62). Raising any one of them in isolation flattens the frame and the eye loses its focal point — reviewers reported exactly that when they were all near 1.0."
   ],
   "conventions": {
     "branching": "Feature work on `claude/<topic>` branches, merged to `main` with --no-ff.",

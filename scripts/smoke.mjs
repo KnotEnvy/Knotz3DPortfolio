@@ -338,7 +338,10 @@ ok(
 );
 
 if (pane.scrollable) {
-  await pk2.evaluate(() => document.querySelector('.codex__body').focus());
+  // Deliberately does NOT focus the pane first. When a node breaks, focus lands
+  // on Continue, and that is exactly when a reader reaches for the arrow keys —
+  // an earlier version of this check focused the pane by hand, which tested a
+  // path no visitor takes and raced the deferred focus into a flaky pass.
   const before = await pk2.evaluate(() => window.SIGNAL.debug().offset);
   await pk2.keyboard.press('ArrowDown');
   await pk2.keyboard.press('ArrowDown');
@@ -347,7 +350,7 @@ if (pane.scrollable) {
     top: document.querySelector('.codex__body').scrollTop,
     offset: window.SIGNAL.debug().offset,
   }));
-  ok(after.top > 0, `arrow keys scroll the dossier (scrollTop ${after.top})`);
+  ok(after.top > 0, `arrow keys scroll the dossier from wherever focus landed (scrollTop ${after.top})`);
   ok(
     before[0] === after.offset[0] && before[1] === after.offset[1],
     `reading the dossier does not fly the ship (${JSON.stringify(before)} -> ${JSON.stringify(after.offset)})`,

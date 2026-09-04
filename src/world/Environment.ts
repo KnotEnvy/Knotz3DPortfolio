@@ -66,7 +66,21 @@ export class Environment {
       // passing close to the lens does not bloom across the whole frame. Fog
       // now supplies the depth cue, so the rim no longer has to.
       const mat = keep(
-        hullMaterial({ color: def.color, base: 0x0c1220, rim: 1.05, power: 2.4, glow: 0.03, scan: true }),
+        /*
+         * Scenery is deliberately the dimmest thing in the frame.
+         *
+         * Every emissive surface used to sit at roughly the same intensity —
+         * scenery at rim 1.05, the ship at 1.15 — so a combat frame had no
+         * focal hierarchy at all and reviewers reported the eye had nowhere to
+         * land first, and that hostiles were indistinguishable from
+         * architecture. Bloom then smeared all of it together equally.
+         *
+         * The order that matters is threats, then your ship, then the objective
+         * you are flying at, then the world it all happens in. Scenery is last,
+         * so it is graded down until it reads as the place rather than as
+         * something you might need to shoot.
+         */
+        hullMaterial({ color: def.color, base: 0x0c1220, rim: 0.62, power: 2.6, glow: 0.015, scan: true }),
       );
 
       // Three silhouettes per sector rather than one. A single rescaled box
@@ -150,7 +164,7 @@ export class Environment {
       let arches: THREE.InstancedMesh | null = null;
       let archMat: THREE.MeshBasicMaterial | null = null;
       if (def.form === 'reactor' || def.form === 'beacon' || def.form === 'spine') {
-        archMat = keep(glowMaterial(def.color, 0.22));
+        archMat = keep(glowMaterial(def.color, 0.13));
         const archGeo = keep(archGeometry(def.form));
         const n = Math.max(3, Math.round(6 * this.detail));
         arches = new THREE.InstancedMesh(archGeo, archMat, n);
@@ -174,7 +188,7 @@ export class Environment {
       // Accent lights: small bright quads scattered on the props' side of the
       // corridor. Cheap, and they give the bloom something to chew on so the
       // flanks are not just dark silhouettes.
-      const accentMat = keep(glowMaterial(def.color, 0.42));
+      const accentMat = keep(glowMaterial(def.color, 0.26));
       const accentGeo = keep(new THREE.SphereGeometry(1, 6, 5));
       const an = Math.round(70 * this.detail);
       const accents = new THREE.InstancedMesh(accentGeo, accentMat, an);
@@ -203,8 +217,8 @@ export class Environment {
   update(elapsed: number): void {
     for (const b of this.bands) {
       for (const m of b.mats) m.uniforms.uTime.value = elapsed;
-      if (b.archMat) b.archMat.opacity = 0.15 + Math.sin(elapsed * 0.7 + b.def.index) * 0.06;
-      if (b.accentMat) b.accentMat.opacity = 0.3 + Math.sin(elapsed * 2.1 + b.def.index * 1.7) * 0.14;
+      if (b.archMat) b.archMat.opacity = 0.09 + Math.sin(elapsed * 0.7 + b.def.index) * 0.035;
+      if (b.accentMat) b.accentMat.opacity = 0.19 + Math.sin(elapsed * 2.1 + b.def.index * 1.7) * 0.08;
     }
   }
 

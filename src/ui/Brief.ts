@@ -79,10 +79,12 @@ export function buildBrief(handlers?: BriefHandlers): HTMLElement {
         el('b', { text: profile.name }),
         el('span', { text: 'SIGNAL' }),
       ]),
-      el(
-        'div',
-        { class: 'bnav__links' },
-        navLinks.map(([href, label]) => el('a', { class: 'bnav__link', href, text: label })),
+      navScroller(
+        el(
+          'div',
+          { class: 'bnav__links' },
+          navLinks.map(([href, label]) => el('a', { class: 'bnav__link', href, text: label })),
+        ),
       ),
       el('div', { class: 'bnav__actions' }, [
         // On a phone the brief *is* the site, and it is a twenty-three-screen
@@ -377,4 +379,32 @@ function section(id: string, title: string, kicker: string, children: Array<Node
     ]),
     ...children,
   ]);
+}
+
+/**
+ * Mark which sides of a horizontal scroller still have content off-screen.
+ *
+ * The section nav hides its scrollbar, so on a phone it simply guillotined the
+ * last chip at the frame edge and read as a broken layout rather than as a row
+ * you can push. A static fade fixed the look but was applied whether or not
+ * anything was actually cut off — it dimmed the last chip on tablet widths
+ * where the row fits perfectly — and it never went away once you reached the
+ * end, so it kept promising content that was not there.
+ *
+ * Driving it from real overflow means the hint appears exactly when it is true
+ * and on the side it is true, which is the only version of this that is honest.
+ */
+function navScroller(node: HTMLElement): HTMLElement {
+  const sync = () => {
+    const max = node.scrollWidth - node.clientWidth;
+    node.classList.toggle('at-start', node.scrollLeft <= 1);
+    node.classList.toggle('at-end', max <= 1 || node.scrollLeft >= max - 1);
+  };
+  node.addEventListener('scroll', sync, { passive: true });
+  window.addEventListener('resize', sync);
+  // Fonts land after first layout and change every chip width with them.
+  if (document.fonts?.ready) document.fonts.ready.then(sync).catch(() => {});
+  requestAnimationFrame(sync);
+  sync();
+  return node;
 }

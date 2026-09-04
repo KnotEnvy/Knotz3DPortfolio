@@ -104,24 +104,47 @@
   overflow-x: auto;
   scrollbar-width: none;
   /*
-   * The scrollbar is hidden, so on a narrow viewport the last chip was simply
-   * guillotined at the frame edge with nothing to say the row continues — it
-   * read as a layout bug rather than as a scroller. Fading the last few
-   * millimetres turns the same clip into an affordance. The mask only applies
-   * where there is actually overflow to hint at, so the desktop row, which
-   * fits, keeps its chips at full strength.
+   * The scrollbar is hidden, so a narrow viewport guillotined the last chip at
+   * the frame edge with nothing to say the row continues — it read as a layout
+   * bug rather than as a scroller. The fade turns the same clip into an
+   * affordance, and it is driven from real overflow (see navScroller in
+   * Brief.ts) so it appears only on a side that genuinely has more content:
+   * no fade on a tablet where the row fits, and the right-hand fade clears
+   * once you have actually reached the end.
    */
-  mask-image: linear-gradient(90deg, #000 calc(100% - 2.2rem), transparent 100%);
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 2.2rem), transparent 100%);
-  padding-right: 1.6rem;
+  --nav-fade: 2.75rem;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 var(--nav-fade),
+    #000 calc(100% - var(--nav-fade)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 var(--nav-fade),
+    #000 calc(100% - var(--nav-fade)),
+    transparent 100%
+  );
 }
 
-@media (min-width: 861px) {
-  .bnav__links {
-    mask-image: none;
-    -webkit-mask-image: none;
-    padding-right: 0;
-  }
+/* Nothing hidden to the left — do not fade that edge. */
+.bnav__links.at-start {
+  mask-image: linear-gradient(90deg, #000 calc(100% - var(--nav-fade)), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--nav-fade)), transparent 100%);
+}
+
+/* Nothing hidden to the right. */
+.bnav__links.at-end {
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--nav-fade));
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--nav-fade));
+}
+
+/* Fits outright: no hint at all. */
+.bnav__links.at-start.at-end {
+  mask-image: none;
+  -webkit-mask-image: none;
 }
 
 /* Roles never split across a line; the row wraps between them instead. */

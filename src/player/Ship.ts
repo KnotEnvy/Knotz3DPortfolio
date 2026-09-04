@@ -91,7 +91,10 @@ export class Ship {
       return x;
     };
 
-    const shell = keep(hullMaterial({ color: accent, base: 0x0b1220, rim: 1.15, power: 2.2, glow: 0.06, panel: 0.85 }));
+    // Second only to threats in the intensity order. The hull was reading at
+    // almost exactly the brightness of the scenery around it, so in the teal
+    // sectors the ship was getting lost in its own colour family.
+    const shell = keep(hullMaterial({ color: accent, base: 0x0b1220, rim: 1.7, power: 2.0, glow: 0.09, panel: 0.85 }));
     const shellDark = keep(hullMaterial({ color: accent, base: 0x060a12, rim: 0.7, power: 3.0, panel: 1.2 }));
     this.hullMats.push(shell, shellDark);
 

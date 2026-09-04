@@ -28,7 +28,11 @@ const glowMat = (color: number, opacity = 1) =>
 // lights to rig, and the rim picks out every edge of these silhouettes, which
 // is the whole reason they are recognisable from a kilometre out.
 const shellMat = (color: number) =>
-  track(hullMaterial({ color, base: 0x0a1220, rim: 1.05, power: 2.3, glow: 0.05, panel: 3.5 }));
+  // The objective. It was graded identically to the scenery it stands in,
+  // which is the wrong way round for the one structure the whole sector is
+  // about — it should be the thing you pick out of the frame first after the
+  // things shooting at you.
+  track(hullMaterial({ color, base: 0x0a1220, rim: 1.5, power: 2.1, glow: 0.08, panel: 3.5 }));
 
 const wireMat = (color: number, opacity: number) =>
   track(new THREE.LineBasicMaterial({ color, transparent: true, opacity, toneMapped: false }));
