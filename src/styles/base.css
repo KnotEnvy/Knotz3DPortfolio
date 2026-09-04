@@ -89,6 +89,17 @@ html.brief-mode body {
   pointer-events: auto;
 }
 
+/*
+ * Inter ships here at 400/500/600 only. Left alone, a <b> or <strong> in body
+ * copy asks for 700, gets nothing, and the browser fakes it by smearing the
+ * 600 outline — which looks muddy next to the real weights everywhere else.
+ * Bold in body copy is 600, and it is a real cut.
+ */
+b,
+strong {
+  font-weight: 600;
+}
+
 a {
   color: var(--accent);
   text-decoration: none;
