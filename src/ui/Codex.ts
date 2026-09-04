@@ -301,15 +301,29 @@ export class Codex {
           b.by ? el('cite', { text: `— ${b.by}` }) : null,
         ]);
 
-      case 'cta':
-        return el('div', { class: 'cx-cta' }, [
-          el('a', {
-            class: b.kind === 'primary' ? 'btn btn--primary btn--sm' : 'btn btn--sm',
-            href: b.href,
-            ...(b.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {}),
-            text: b.label,
-          }),
-        ]);
+      case 'cta': {
+        const link = el('a', {
+          class: b.kind === 'primary' ? 'btn btn--primary btn--sm' : 'btn btn--sm',
+          href: b.href,
+          ...(b.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {}),
+          text: b.label,
+        });
+        // mailto: is a dead click for anyone on webmail, which is most of the
+        // business owners this sector is written for.
+        if (!b.href.startsWith('mailto:')) return el('div', { class: 'cx-cta' }, [link]);
+        const address = b.href.slice(7).split('?')[0];
+        const copy = el('button', { class: 'btn btn--sm cx-copy', type: 'button', text: 'Copy' }) as HTMLButtonElement;
+        copy.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(address);
+            copy.textContent = 'Copied';
+          } catch {
+            copy.textContent = address;
+          }
+          window.setTimeout(() => (copy.textContent = 'Copy'), 2200);
+        });
+        return el('div', { class: 'cx-cta' }, [link, copy]);
+      }
     }
   }
 

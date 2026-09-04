@@ -13,7 +13,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "smoke": "node scripts/smoke.mjs",
+    "smoke:serve": "http-server dist -p 4173 -a 127.0.0.1 -c-1 --silent"
   },
   "dependencies": {
     "three": "^0.180.0"

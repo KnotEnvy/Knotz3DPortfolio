@@ -26,3 +26,6 @@ dist-ssr
 # Scratch verification/capture scripts. Browser-driving harnesses are written
 # ad hoc while checking a build and are deliberately not part of the source.
 _*.mjs
+
+# Scratch harnesses used while debugging in a session.
+_*.mjs

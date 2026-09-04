@@ -199,7 +199,9 @@
 
 .brief__kicker {
   display: inline-flex;
-  align-items: center;
+  /* Wraps to two lines on a phone; centring pulled the dot onto the first
+     letter of the second line. */
+  align-items: flex-start;
   gap: 0.5rem;
   margin: 0 0 1.1rem;
   font-family: var(--font-mono);
@@ -210,6 +212,8 @@
 }
 
 .brief__kickerDot {
+  flex: none;
+  margin-top: 0.35em;
   width: 6px;
   height: 6px;
   border-radius: 50%;

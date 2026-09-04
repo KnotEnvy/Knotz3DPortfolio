@@ -1195,10 +1195,20 @@
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
+/*
+ * A fixed height, not an intrinsic one. Letting the panel size to its content
+ * made it change height and vertical position between tabs, so the tab bar
+ * jumped out from under the pointer as soon as you used it.
+ */
 .ov__body {
   flex: 1;
+  min-height: min(22rem, 50vh);
   overflow-y: auto;
   padding: 1.1rem 1.3rem;
+  /* The achievement list runs past the fold; fade the cut so it reads as
+     "scrolls" rather than "ends here". */
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 2rem), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 2rem), transparent 100%);
 }
 
 .ov__lead {

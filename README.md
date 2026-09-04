@@ -55,7 +55,25 @@ npm run dev        # http://localhost:5173
 npm run typecheck  # tsc --noEmit, strict
 npm run build      # typecheck + production bundle into dist/
 npm run preview    # serve the built bundle
+npm run smoke      # behavioural regression checks against a served build
 npm run deploy     # build and publish dist/ to the gh-pages branch
+```
+
+### The smoke suite
+
+`scripts/smoke.mjs` drives the built site in headless Chromium. It is not
+coverage — every check in it is a bug that actually shipped and that a
+type-checker, a linter and a screenshot all failed to notice: a passive visitor
+being permanently stranded at the first node, alt-tab freezing the run forever,
+a CSS collision that deleted a pip from the progress spine each time the player
+succeeded, the title card overflowing a narrow viewport, focus escaping a modal
+that claimed `aria-modal`, and the touch hint rendering on top of the shard
+counter.
+
+```bash
+npm run build
+npm run smoke:serve &   # serves dist/ on :4173
+npm run smoke           # SKIP_PASSIVE=1 skips the slow passive-visitor check
 ```
 
 Node 20.19+ is required. The build has no runtime dependency beyond `three`.
