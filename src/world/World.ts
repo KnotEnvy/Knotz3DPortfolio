@@ -146,11 +146,12 @@ export class World {
     dt: number,
     ship: Ship,
     pixelRatio: number,
+    engaged = false,
   ): THREE.Color {
     this.starfield.update(elapsed, pixelRatio);
 
     this.corridor.update(elapsed);
-    this.environment.update(elapsed);
+    this.environment.update(elapsed, dt, engaged);
 
     const { accent, deep, hot } = this.paletteAt(ship.distance);
 

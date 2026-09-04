@@ -25,10 +25,16 @@ interface Band {
   mats: HullMaterial[];
   archMat: THREE.MeshBasicMaterial | null;
   accents: THREE.InstancedMesh | null;
+  /** Resting emissive values, so the combat dim is applied relative to them. */
+  rim: number;
+  glow: number;
   accentMat: THREE.MeshBasicMaterial | null;
 }
 
 export class Environment {
+  /** Eased 0..1: how much the world is standing back for a fight. */
+  private combat = 0;
+
   readonly object = new THREE.Group();
 
   private bands: Band[] = [];
@@ -80,7 +86,20 @@ export class Environment {
          * so it is graded down until it reads as the place rather than as
          * something you might need to shoot.
          */
-        hullMaterial({ color: def.color, base: 0x0c1220, rim: 0.62, power: 2.6, glow: 0.015, scan: true }),
+        hullMaterial({
+          // Desaturated, not just dimmed. Cutting intensity alone left the
+          // scenery the second-loudest thing in frame — ahead of the ship —
+          // because a third of the view was still high-chroma neon. Pulling the
+          // sector accent toward slate keeps each sector's identity in the hue
+          // while letting the saturated end of the palette belong to the things
+          // that matter: your ship, the objective, and whatever is shooting.
+          color: new THREE.Color(def.color).lerp(new THREE.Color(0x2a3346), 0.45).getHex(),
+          base: 0x0a0f1a,
+          rim: 0.62,
+          power: 2.6,
+          glow: 0.015,
+          scan: true,
+        }),
       );
 
       // Three silhouettes per sector rather than one. A single rescaled box
@@ -210,15 +229,42 @@ export class Environment {
       accents.instanceMatrix.needsUpdate = true;
       this.object.add(accents);
 
-      this.bands.push({ def, props, arches, mats: [mat], archMat, accents, accentMat });
+      this.bands.push({ def, props, arches, mats: [mat], archMat, accents, accentMat, rim: 0.62, glow: 0.015 });
     });
   }
 
-  update(elapsed: number): void {
+  /**
+   * Step the world back while the player is fighting.
+   *
+   * A fixed grade cannot serve both jobs. Cruising, the scenery is most of what
+   * there is to look at and wants presence; mid-fight it is pure interference,
+   * and a reviewer driving VENTURES — the densest, most saturated sector —
+   * could not pick hostiles out of it even with markers rendering correctly.
+   * Grading hard enough to fix the fight would have left the corridor empty for
+   * the eighty per cent of the run that is not a fight.
+   *
+   * So it is not fixed. When hostiles are up, the environment dims and its
+   * accent lights fade, then come back when the wave is clear. Eased rather
+   * than switched, because a scene that snaps darker the instant a wave spawns
+   * reads as a bug; over about a second it reads as the world holding its
+   * breath, and the player never consciously notices it at all.
+   */
+  update(elapsed: number, dt = 0, engaged = false): void {
+    const target = engaged ? 1 : 0;
+    this.combat += (target - this.combat) * Math.min(1, dt * 2.2);
+    const dim = 1 - this.combat * 0.42;
+    const lights = 1 - this.combat * 0.55;
+
     for (const b of this.bands) {
-      for (const m of b.mats) m.uniforms.uTime.value = elapsed;
-      if (b.archMat) b.archMat.opacity = 0.09 + Math.sin(elapsed * 0.7 + b.def.index) * 0.035;
-      if (b.accentMat) b.accentMat.opacity = 0.19 + Math.sin(elapsed * 2.1 + b.def.index * 1.7) * 0.08;
+      for (const m of b.mats) {
+        m.uniforms.uTime.value = elapsed;
+        m.uniforms.uRim.value = b.rim * dim;
+        m.uniforms.uGlow.value = b.glow * dim;
+      }
+      if (b.archMat) b.archMat.opacity = (0.09 + Math.sin(elapsed * 0.7 + b.def.index) * 0.035) * lights;
+      if (b.accentMat) {
+        b.accentMat.opacity = (0.19 + Math.sin(elapsed * 2.1 + b.def.index * 1.7) * 0.08) * lights;
+      }
     }
   }
 
@@ -257,7 +303,15 @@ function propGeometries(form: SectorDef['form']): THREE.BufferGeometry[] {
   switch (form) {
     // ORIGIN: monoliths and pylons. Nothing built yet, just the material.
     case 'knot':
-      return [slab(5, 3.4, 46, 5), new THREE.ConeGeometry(7, 34, 5, 1), slab(11, 8, 24, 6, 0.4)];
+      // Deliberately the least slab-like set in the game. ORIGIN and VENTURES
+      // are the two sectors every screenshot lands on, and with both leading on
+      // rectangular blocks a reviewer read the whole world as one asset in six
+      // palettes. Origin gets pylons and faceted crystal instead of towers.
+      return [
+        new THREE.ConeGeometry(7, 34, 5, 1),
+        new THREE.OctahedronGeometry(9, 0),
+        new THREE.CylinderGeometry(1.4, 5.5, 40, 5),
+      ];
     // VENTURES: towers and blocks. Two businesses, built upward.
     case 'twin':
       return [slab(11, 7, 78, 4, Math.PI / 4), slab(13, 8, 62, 6), slab(20, 16, 30, 8, 0.2)];

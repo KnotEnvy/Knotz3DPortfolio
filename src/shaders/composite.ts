@@ -71,7 +71,11 @@ export const CompositeShader = {
       // for the red and blue channels afterwards, which threw the streak away on
       // two channels out of three and left boost looking green and noisy rather
       // than fast.
-      float streak = uBoost * 0.06 + uFlash * 0.02;
+      // Boost has to read as direction, not as brightness. At 0.06 the radial
+      // pull was subtle enough that the frame's speckle read as noise sitting on
+      // a still image rather than as the frame moving — the streak has to be the
+      // loudest thing about a boosted frame or the effect is doing nothing.
+      float streak = uBoost * 0.105 + uFlash * 0.02;
       vec3 col;
       if (streak > 0.0005) {
         vec3 accum = vec3(0.0);

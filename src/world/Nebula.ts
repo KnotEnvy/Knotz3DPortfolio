@@ -154,10 +154,20 @@ const FRAG = /* glsl */ `
     col += uColorB * hot * 0.95;
     col += uColorB * ridge * 0.6;
 
-    // Distant unresolved star haze, dense enough to imply depth. Kept under the
-    // bloom threshold so it stays as pinpricks rather than smearing.
-    float grain = hash(floor(d * 620.0));
-    col += vec3(0.85, 0.9, 1.0) * pow(grain, 40.0) * 0.85;
+    /*
+     * Distant unresolved star haze.
+     *
+     * This was sampled at near-pixel frequency, which is the difference between
+     * "stars too far to resolve" and "sensor noise": at 620 cells the specks
+     * were smaller than a pixel and dense enough that a reviewer read the whole
+     * boosted frame as compression artefacts sitting on top of the scene. It
+     * also doubled up with the real starfield, which is already drawing stars.
+     *
+     * Sparser and larger. Fewer cells clear the threshold, each one is big
+     * enough to read as a point of light, and the field beneath stays haze.
+     */
+    float grain = hash(floor(d * 300.0));
+    col += vec3(0.85, 0.9, 1.0) * pow(grain, 110.0) * 0.7;
 
     gl_FragColor = vec4(col, 1.0);
   }

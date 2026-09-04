@@ -91,10 +91,24 @@ export class Ship {
       return x;
     };
 
-    // Second only to threats in the intensity order. The hull was reading at
-    // almost exactly the brightness of the scenery around it, so in the teal
-    // sectors the ship was getting lost in its own colour family.
-    const shell = keep(hullMaterial({ color: accent, base: 0x0b1220, rim: 1.7, power: 2.0, glow: 0.09, panel: 0.85 }));
+    /*
+     * Second only to threats in the intensity order — but a silhouette is made
+     * of dark, not light.
+     *
+     * The first attempt at lifting the ship out of the scenery simply turned
+     * the rim up to 1.7, and a reviewer reported the result exactly: the craft
+     * stopped reading as a shape and became five overexposed point-lights with
+     * no visible hull between them. Every discrete emissive detail — intake
+     * ring, wing edges, engine bells — sat above the bloom threshold, so bloom
+     * dissolved the geometry that was supposed to connect them.
+     *
+     * So the rim comes back down to a level that still clears the scenery by a
+     * wide margin, the base goes darker to give the panel lines something to
+     * cut against, and the glow points are pulled well under the threshold.
+     * The ship reads because it is the most *contrasty* thing in frame, not the
+     * hottest.
+     */
+    const shell = keep(hullMaterial({ color: accent, base: 0x070c16, rim: 1.3, power: 2.2, glow: 0.05, panel: 0.85 }));
     const shellDark = keep(hullMaterial({ color: accent, base: 0x060a12, rim: 0.7, power: 3.0, panel: 1.2 }));
     this.hullMats.push(shell, shellDark);
 
@@ -129,7 +143,7 @@ export class Ship {
 
     // Glowing intake ring at the shoulder — a bright anchor point so the eye
     // has somewhere to land on a dark hull.
-    this.intakeMat = keep(glowMaterial(accent, 0.9));
+    this.intakeMat = keep(glowMaterial(accent, 0.42));
     const intake = new THREE.Mesh(keep(new THREE.TorusGeometry(1.2, 0.14, 6, 24)), this.intakeMat);
     intake.position.z = 0.1;
     this.hull.add(intake);
@@ -165,7 +179,7 @@ export class Ship {
     wingShape.lineTo(0, -2.4);
     const wingGeo = keep(new THREE.ExtrudeGeometry(wingShape, { depth: 0.18, bevelEnabled: false }));
     const edgeGeo = keep(new THREE.BoxGeometry(0.1, 0.1, 4.2));
-    const edgeMat = keep(glowMaterial(accent, 0.85));
+    const edgeMat = keep(glowMaterial(accent, 0.44));
 
     for (const side of [1, -1]) {
       const wing = new THREE.Mesh(wingGeo, shellDark);
@@ -208,7 +222,7 @@ export class Ship {
       nacelle.position.set(side * 2.5, -0.05, 1.7);
       this.hull.add(nacelle);
 
-      const bell = new THREE.Mesh(keep(new THREE.CircleGeometry(0.42, 18)), keep(glowMaterial(0x7fe8dc, 0.7)));
+      const bell = new THREE.Mesh(keep(new THREE.CircleGeometry(0.42, 18)), keep(glowMaterial(0x7fe8dc, 0.4)));
       bell.position.set(side * 2.5, -0.05, 2.78);
       this.engines.push(bell);
       this.hull.add(bell);
@@ -223,7 +237,7 @@ export class Ship {
       this.hull.add(f);
     }
 
-    const mainBell = new THREE.Mesh(keep(new THREE.CircleGeometry(0.72, 20)), keep(glowMaterial(0x8ff0e2, 0.75)));
+    const mainBell = new THREE.Mesh(keep(new THREE.CircleGeometry(0.72, 20)), keep(glowMaterial(0x8ff0e2, 0.44)));
     mainBell.position.set(0, 0, 3.15);
     this.engines.push(mainBell);
     this.hull.add(mainBell);

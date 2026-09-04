@@ -22,7 +22,7 @@
       "Founder / AI Engineer, Hacktivate Nation"
     ]
   },
-  "status": "v3 on a feature branch, not merged or deployed. Five review rounds were run by an independent judge panel scoring graphics, UX and overall quality out of 10. Round 4 scored 8.7 / 9.1 / 8.8; round 5 was stopped partway by the owner, who took over evaluation directly. The 9.5 bar set at the start of the rebuild was not reached, and the merge to main and the deletion of old branches were gated on it — so neither has been done. Both are the owner's call now.",
+  "status": "v3 on branch claude/3d-portfolio-polish-8dxhjx. NOT yet merged to main, so the live Vercel and GitHub Pages URLs described in README still serve v2 — the deployment section there describes where the site lives, not what is on it. Merging and redeploying is the outstanding step (see the deploy-v3 open item). Reviewed by an independent judge panel scoring graphics, UX and overall quality out of 10; the passing bar was revised by the owner from 9.5 in every category to 9.0, with a maximum of three rounds.",
   "deployment": {
     "intendedHost": "Vercel",
     "productionUrl": "https://knotz3d-portfolio.vercel.app/",

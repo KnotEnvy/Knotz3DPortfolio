@@ -551,7 +551,11 @@ class App {
     this.particles.update(dt);
     this.impacts.update(dt, this.engine.camera);
 
-    const accent = this.world.update(this.elapsed, dt, this.ship, this.engine.renderer.getPixelRatio());
+    // The world stands back while there is something to shoot. Driven from live
+    // hostile count rather than the director's phase, so it also covers the
+    // stragglers that outlive a wave.
+    const engaged = this.combat.aliveCount > 0;
+    const accent = this.world.update(this.elapsed, dt, this.ship, this.engine.renderer.getPixelRatio(), engaged);
     this.accent.copy(accent);
 
     if (this.running) {

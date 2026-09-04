@@ -156,7 +156,12 @@ Everything the site says lives in three files:
 Adding a project means adding an entry to `projects` and referencing its id from
 a sector's `cards` block. The brief picks it up automatically.
 
-## Deploying
+## Deploy
+
+> **Current state:** the v3 rebuild lives on `claude/3d-portfolio-polish-8dxhjx` and has not been
+> merged. Until it is, both URLs below serve the previous version. `handoff.json` tracks what is
+> outstanding.
+ing
 
 `base` is `'./'`, so the build works from any path.
 
