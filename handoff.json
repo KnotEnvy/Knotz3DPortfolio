@@ -252,12 +252,7 @@
     {
       "id": "art-direction",
       "priority": "medium",
-      "item": "Reviewers consistently rate the look as a well-executed take on a familiar neon/synthwave idiom rather than something visually novel. The remaining gap to a top-tier score is art direction, not defects: a distinctive material or lighting idea, or a less-trodden palette."
-    },
-    {
-      "id": "og-image-refresh",
-      "priority": "low",
-      "item": "public/og.jpg was rendered with fallback system fonts because Google Fonts was unreachable in the build environment, and it still shows the v2 look. Re-render it from the v3 build with Space Grotesk loaded."
+      "item": "Reviewers rate the look as a well-executed take on a familiar neon idiom rather than something visually novel. Round-3 remediation closed the concrete defects — the nebula renders, the sky has parallax, threat markers read over bloom, panel lines carry at distance — so what is left here is art direction rather than bugs: a distinctive material or lighting idea, or a less trodden palette."
     },
     {
       "id": "unit-tests",
@@ -267,10 +262,11 @@
   ],
   "knownRisks": [
     "Both hosts must be republished together or they drift. Vercel redeploys automatically on push to main; GitHub Pages does not, and needs `npm run deploy`. If Pages is left stale it serves an old resume from an indexed URL.",
-    "Fonts load from Google Fonts. If they fail, the design falls back to system stacks and still reads correctly, but tracking and weights shift.",
     "Progress is stored in localStorage under the key `signal.save.v2`. Fields added since are filled in from defaults on load, so old saves still work; bumping the shape means bumping the version and the `v` check in src/core/Save.ts.",
     "Custom ShaderMaterials do not receive three’s fog, lights or tone mapping automatically. Anything new that should sit in the same atmosphere has to implement fog itself, as src/shaders/hull.ts does.",
-    "Several bugs in this rebuild were of one shape: a factor in an alpha or intensity product silently going to zero, leaving an element rendering as nothing while looking correct in code. When something is invisible, check for a zeroed term before doubting the geometry."
+    "Several bugs in this rebuild were of one shape: a factor in an alpha or intensity product silently going to zero, leaving an element rendering as nothing while looking correct in code. When something is invisible, check for a zeroed term before doubting the geometry.",
+    "#ui is a stack of fixed full-viewport layers over the canvas, and any one of them that takes pointer events becomes an invisible shield over everything beneath. base.css therefore lists which layers take pointers and defaults the rest to none. A new layer left off that list is visibly broken; a new layer wrongly added to it breaks everything under it silently. Three smoke checks assert the outcome.",
+    "Chromium interpolates a CSS transition or keyframe between a bare hex and a color-mix() through oklab(), and out-of-gamut midpoints can clip to a completely wrong hue — a violet objective card rendered a pure green ring for a whole animation. Both ends of any animated colour must be written with the same colour function."
   ],
   "conventions": {
     "branching": "Feature work on `claude/<topic>` branches, merged to `main` with --no-ff.",
@@ -321,7 +317,10 @@
       "Breaking a node hands keyboard focus to the dossier Continue button",
       "The title card fits a 320px viewport",
       "The written brief keeps its section nav and contact jump on a phone",
-      "The touch hint does not overlap the shard counter"
+      "The touch hint does not overlap the shard counter",
+      "A real mouse click on a route pip actually jumps sector — the outcome, not the CSS rule",
+      "The canvas is reachable through the HUD and through the mobile touch band, so drag-to-fly survives",
+      "The boost button still takes taps"
     ]
   }
 }
