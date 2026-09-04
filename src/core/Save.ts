@@ -10,6 +10,10 @@ export interface SaveData {
   seenIntro: boolean;
   muted: boolean;
   bestTimeMs: number | null;
+  /** Lifetime hostiles destroyed. */
+  kills: number;
+  /** Lifetime encryption nodes broken. */
+  nodes: number;
 }
 
 const KEY = 'signal.save.v2';
@@ -24,6 +28,8 @@ const blank = (): SaveData => ({
   seenIntro: false,
   muted: false,
   bestTimeMs: null,
+  kills: 0,
+  nodes: 0,
 });
 
 /**
@@ -37,6 +43,8 @@ export const save = {
       if (!raw) return blank();
       const parsed = JSON.parse(raw) as Partial<SaveData>;
       if (parsed.v !== 2) return blank();
+      // Spreading over a blank record means fields added after a visitor's last
+      // session fill in with defaults instead of arriving undefined.
       return { ...blank(), ...parsed };
     } catch {
       return blank();

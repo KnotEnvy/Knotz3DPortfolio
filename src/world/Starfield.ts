@@ -30,7 +30,7 @@ const FRAG = /* glsl */ `
     // Soft core with a wide falloff halo.
     float core = smoothstep(0.5, 0.0, r);
     float halo = smoothstep(0.5, 0.15, r);
-    gl_FragColor = vec4(vColor * (core * 0.6 + halo * 1.4) * vTwinkle, core);
+    gl_FragColor = vec4(vColor * (core * 0.55 + halo * 0.75) * vTwinkle, core * 0.9);
   }
 `;
 
@@ -64,12 +64,12 @@ export class Starfield {
       pos[i * 3 + 2] = rnd() * -2600 + 400;
 
       const c = palette[(rnd() * palette.length) | 0];
-      const dim = 0.45 + rnd() * 0.55;
+      const dim = 0.3 + rnd() * 0.5;
       col[i * 3 + 0] = c.r * dim;
       col[i * 3 + 1] = c.g * dim;
       col[i * 3 + 2] = c.b * dim;
 
-      size[i] = 0.7 + rnd() * rnd() * 3.4;
+      size[i] = 0.5 + rnd() * rnd() * 2.2;
       phase[i] = rnd() * Math.PI * 2;
     }
 

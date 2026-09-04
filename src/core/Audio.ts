@@ -144,6 +144,98 @@ export class AudioEngine {
     this.blip(120, 0.22, 'sawtooth', 0.05, 60);
   }
 
+
+  /**
+   * Filtered noise burst. Explosions are noise, not tones — a sawtooth sweep
+   * reads as a laser no matter what you do to the envelope, so detonations get
+   * a real noise buffer through a swept low-pass instead.
+   */
+  private noise(dur: number, gain: number, from: number, to: number, q = 1.4): void {
+    const ctx = this.ctx;
+    const master = this.master;
+    if (!ctx || !master) return;
+    const t = ctx.currentTime;
+
+    const frames = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    // Slightly correlated noise: a touch of the previous sample gives the burst
+    // body rather than the thin hiss of pure white.
+    let prev = 0;
+    for (let i = 0; i < frames; i++) {
+      const w = Math.random() * 2 - 1;
+      prev = prev * 0.34 + w * 0.66;
+      data[i] = prev;
+    }
+
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.value = q;
+    filter.frequency.setValueAtTime(from, t);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(60, to), t + dur);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    src.start(t);
+    src.stop(t + dur + 0.02);
+  }
+
+  /** Player cannon. Deliberately short and dry so a held trigger is not fatiguing. */
+  shoot(): void {
+    this.blip(1750, 0.055, 'square', 0.026, 520);
+    this.noise(0.05, 0.02, 5200, 1400);
+  }
+
+  /** A bolt landing on something that survived it. */
+  ping(): void {
+    this.blip(2300, 0.04, 'triangle', 0.018, 1500);
+  }
+
+  /** Small kill. */
+  pop(size = 1): void {
+    this.noise(0.26 * size, 0.13, 2600, 180, 1.1);
+    this.blip(150, 0.2 * size, 'sawtooth', 0.05, 52);
+  }
+
+  /** Shield collapse: a big downward sweep with a metallic ring on top. */
+  shieldBreak(): void {
+    this.noise(0.75, 0.2, 6200, 140, 2.6);
+    this.blip(880, 0.5, 'triangle', 0.09, 190);
+    this.blip(1320, 0.36, 'sine', 0.05, 300);
+  }
+
+  /** Node destroyed. The biggest sound in the game. */
+  nodeBreak(): void {
+    this.noise(1.5, 0.3, 7200, 70, 3.2);
+    this.blip(110, 1.1, 'sawtooth', 0.1, 34);
+    const notes = [261.6, 392, 523.25, 784];
+    notes.forEach((n, i) => window.setTimeout(() => this.blip(n, 0.5, 'triangle', 0.1), i * 110));
+  }
+
+  /** The player taking a hit. Dull, close, unpleasant. */
+  hurt(): void {
+    this.noise(0.4, 0.22, 900, 90, 0.8);
+    this.blip(88, 0.3, 'square', 0.055, 44);
+  }
+
+  /** A wave cleared. */
+  waveClear(): void {
+    [659.25, 880].forEach((n, i) => window.setTimeout(() => this.blip(n, 0.16, 'triangle', 0.07), i * 80));
+  }
+
+  /** Warning chirp when hull integrity is low. */
+  alarm(): void {
+    this.blip(440, 0.1, 'square', 0.045, 330);
+  }
+
   dispose(): void {
     for (const v of this.padVoices) {
       try {

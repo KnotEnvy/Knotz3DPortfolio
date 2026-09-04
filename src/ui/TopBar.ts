@@ -5,6 +5,7 @@ export interface TopBarHandlers {
   toggleSound(): boolean;
   toggleBrief(): boolean;
   toggleTerminal(): void;
+  toggleHelp(): void;
 }
 
 export class TopBar {
@@ -31,6 +32,15 @@ export class TopBar {
       onclick: () => this.syncBrief(handlers.toggleBrief()),
     });
 
+    const helpBtn = el('button', {
+      class: 'icon-btn',
+      type: 'button',
+      'aria-label': 'Controls and pause menu',
+      title: 'Controls (H)',
+      html: icons.help,
+      onclick: () => handlers.toggleHelp(),
+    });
+
     const terminalBtn = el('button', {
       class: 'icon-btn',
       type: 'button',
@@ -44,7 +54,16 @@ export class TopBar {
         el('span', { class: 'brand__mark', text: profile.name }),
         el('span', { class: 'brand__role', text: profile.title }),
       ]),
-      el('nav', { class: 'toolbar', 'aria-label': 'Site controls' }, [terminalBtn, this.briefBtn, this.soundBtn]),
+      // The contact CTA is the only element on screen that never changes and
+      // never hides. Everything else on this site is a demonstration; this is
+      // the ask, and a visitor who loses interest two sectors in should still
+      // have it one click away.
+      el('a', {
+        class: 'topbar__cta',
+        href: `mailto:${profile.email}?subject=AI%20project%20enquiry`,
+        'aria-label': `Email ${profile.email}`,
+      }, [el('span', { html: icons.mail }), el('span', { class: 'topbar__ctaLabel', text: 'Hire me' })]),
+      el('nav', { class: 'toolbar', 'aria-label': 'Site controls' }, [helpBtn, terminalBtn, this.briefBtn, this.soundBtn]),
     ]);
 
     parent.append(this.root);

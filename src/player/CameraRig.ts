@@ -2,42 +2,71 @@ import * as THREE from 'three';
 import { damp, clamp } from '../core/Math';
 import type { Ship } from './Ship';
 
-const BASE_FOV = 62;
-const BOOST_FOV = 76;
+const BASE_FOV = 66;
+const BOOST_FOV = 84;
 
 /**
- * Chase camera with spring smoothing, boost FOV kick and a decaying shake
- * channel other systems can push into.
+ * Chase camera for rail flight.
+ *
+ * The rig sits in the ship's rail frame rather than its world orientation: it
+ * trails the craft along the tube, but its own up stays welded to the route's
+ * up. That is the difference between a corridor that feels like a corridor and
+ * one that rolls sickeningly every time the spline curves.
+ *
+ * The camera also lags the ship's lateral offset deliberately. Trailing the
+ * slide by a fraction of a second is what makes a hard bank feel like weight
+ * instead of a teleport.
  */
 export class CameraRig {
   private desired = new THREE.Vector3();
   private lookTarget = new THREE.Vector3();
   private lookCurrent = new THREE.Vector3();
-  private offset = new THREE.Vector3(0, 3.6, 15.5);
   private shake = 0;
+  private shakeDecay = 1.8;
+  private lagX = 0;
+  private lagY = 0;
+  private back = 17;
+  private high = 4.2;
   private tmp = new THREE.Vector3();
+  private up = new THREE.Vector3(0, 1, 0);
   private initialised = false;
+  private roll = 0;
 
   constructor(private camera: THREE.PerspectiveCamera) {}
 
-  addShake(amount: number): void {
-    this.shake = Math.min(1.2, this.shake + amount);
+  addShake(amount: number, decay = 1.8): void {
+    this.shake = Math.min(1.6, this.shake + amount);
+    this.shakeDecay = decay;
   }
 
   snap(ship: Ship): void {
-    this.computeDesired(ship);
+    this.lagX = ship.offset.x;
+    this.lagY = ship.offset.y;
+    this.compute(ship);
     this.camera.position.copy(this.desired);
     this.lookCurrent.copy(this.lookTarget);
+    this.up.copy(ship.pose.up);
+    this.camera.up.copy(this.up);
     this.camera.lookAt(this.lookCurrent);
     this.initialised = true;
   }
 
-  private computeDesired(ship: Ship): void {
-    this.desired.copy(this.offset).applyEuler(new THREE.Euler(ship.pitch * 0.5, ship.yaw, 0, 'YXZ'));
-    this.desired.add(ship.object.position);
+  private compute(ship: Ship): void {
+    const p = ship.pose;
 
-    ship.getForward(this.tmp);
-    this.lookTarget.copy(ship.object.position).addScaledVector(this.tmp, 22);
+    // Anchor behind the ship *along the rail*, offset by the lagged slide.
+    this.desired
+      .copy(p.position)
+      .addScaledVector(p.tangent, -this.back)
+      .addScaledVector(p.right, this.lagX)
+      .addScaledVector(p.up, this.lagY + this.high);
+
+    // Aim well ahead so the corridor, not the hull, dominates the frame.
+    this.lookTarget
+      .copy(p.position)
+      .addScaledVector(p.tangent, 46)
+      .addScaledVector(p.right, ship.offset.x * 0.72)
+      .addScaledVector(p.up, ship.offset.y * 0.72 + 1.6);
   }
 
   update(ship: Ship, dt: number, elapsed: number): void {
@@ -45,33 +74,53 @@ export class CameraRig {
       this.snap(ship);
       return;
     }
-    this.computeDesired(ship);
 
-    // Pull back slightly under boost for a sense of acceleration.
-    this.offset.z = damp(this.offset.z, 15.5 + ship.boostAmount * 4.5, 3, dt);
-    this.offset.y = damp(this.offset.y, 3.6 + ship.boostAmount * 0.8, 3, dt);
+    // Lag is the whole feel of the camera. Fast enough to keep the ship in
+    // frame, slow enough that a slide reads as effort.
+    this.lagX = damp(this.lagX, ship.offset.x, 6.5, dt);
+    this.lagY = damp(this.lagY, ship.offset.y, 7.5, dt);
 
-    this.camera.position.x = damp(this.camera.position.x, this.desired.x, 6.5, dt);
-    this.camera.position.y = damp(this.camera.position.y, this.desired.y, 6.5, dt);
-    this.camera.position.z = damp(this.camera.position.z, this.desired.z, 6.5, dt);
+    // Pull back and drop under boost.
+    this.back = damp(this.back, 17 + ship.boostAmount * 7.5, 3.4, dt);
+    this.high = damp(this.high, 4.2 - ship.boostAmount * 1.1, 3.4, dt);
 
-    this.lookCurrent.x = damp(this.lookCurrent.x, this.lookTarget.x, 9, dt);
-    this.lookCurrent.y = damp(this.lookCurrent.y, this.lookTarget.y, 9, dt);
-    this.lookCurrent.z = damp(this.lookCurrent.z, this.lookTarget.z, 9, dt);
+    this.compute(ship);
+
+    this.camera.position.x = damp(this.camera.position.x, this.desired.x, 9, dt);
+    this.camera.position.y = damp(this.camera.position.y, this.desired.y, 9, dt);
+    this.camera.position.z = damp(this.camera.position.z, this.desired.z, 9, dt);
+
+    this.lookCurrent.x = damp(this.lookCurrent.x, this.lookTarget.x, 11, dt);
+    this.lookCurrent.y = damp(this.lookCurrent.y, this.lookTarget.y, 11, dt);
+    this.lookCurrent.z = damp(this.lookCurrent.z, this.lookTarget.z, 11, dt);
+
+    // Keep the camera's up on the route frame, smoothed so spline curvature
+    // never snaps the horizon.
+    this.up.lerp(ship.pose.up, Math.min(1, dt * 5));
+    this.camera.up.copy(this.up).normalize();
 
     if (this.shake > 0.001) {
       const s = this.shake * this.shake;
-      this.camera.position.x += Math.sin(elapsed * 61) * s * 0.6;
-      this.camera.position.y += Math.cos(elapsed * 73) * s * 0.6;
-      this.shake = Math.max(0, this.shake - dt * 1.8);
+      // Two incommensurate frequencies per axis so the shake never looks like
+      // a sine wave, which is the tell of a cheap screen shake.
+      this.tmp
+        .copy(ship.pose.right)
+        .multiplyScalar((Math.sin(elapsed * 61) + Math.sin(elapsed * 97) * 0.6) * s * 0.9)
+        .addScaledVector(ship.pose.up, (Math.cos(elapsed * 73) + Math.cos(elapsed * 113) * 0.6) * s * 0.9);
+      this.camera.position.add(this.tmp);
+      this.shake = Math.max(0, this.shake - dt * this.shakeDecay);
     }
 
     this.camera.lookAt(this.lookCurrent);
-    this.camera.rotation.z += ship.roll * 0.35;
+
+    // A touch of counter-roll on top of lookAt. Applied after, because lookAt
+    // resets the roll channel every frame.
+    this.roll = damp(this.roll, ship.bank * 0.42, 5, dt);
+    this.camera.rotateZ(this.roll);
 
     const fov = BASE_FOV + (BOOST_FOV - BASE_FOV) * clamp(ship.boostAmount, 0, 1);
-    if (Math.abs(this.camera.fov - fov) > 0.01) {
-      this.camera.fov = damp(this.camera.fov, fov, 4, dt);
+    if (Math.abs(this.camera.fov - fov) > 0.02) {
+      this.camera.fov = damp(this.camera.fov, fov, 5, dt);
       this.camera.updateProjectionMatrix();
     }
   }

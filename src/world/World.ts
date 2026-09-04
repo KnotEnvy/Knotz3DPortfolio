@@ -1,50 +1,84 @@
 import * as THREE from 'three';
-import { Sector, SHARD_PICKUP_DISTANCE } from './Sector';
+import { Sector } from './Sector';
 import { Starfield } from './Starfield';
 import { Grid } from './Grid';
-import { Corridor } from './Corridor';
+import { Corridor, nearestPair } from './Corridor';
+import { Environment } from './Environment';
+import { Nebula } from './Nebula';
+import { Route } from './Route';
 import { sectors as sectorDefs, type SectorId } from '../data/sectors';
-import type { GameState } from '../game/GameState';
-import { bus } from '../core/Events';
-import type { Ship, ShipBounds } from '../player/Ship';
+import type { Particles } from '../fx/Particles';
+import type { Impacts } from '../fx/Impacts';
+import type { Ship } from '../player/Ship';
+import { setHullFog } from '../shaders/hull';
 
-export const WORLD_BOUNDS: ShipBounds = {
-  x: 340,
-  yMin: -78,
-  yMax: 132,
-  zMin: -1120,
-  zMax: 140,
+const WHITE = new THREE.Color(0xffffff);
+
+/** Deep-space base colours per sector, behind the nebula's accent clouds. */
+const DEEP: Record<SectorId, number> = {
+  origin: 0x050a14,
+  ventures: 0x140615,
+  forge: 0x0b0620,
+  arcade: 0x160d05,
+  track: 0x040b1c,
+  uplink: 0x03110f,
 };
 
 /**
- * Owns the scene graph: sectors, sky, grid, lighting and the waypoint guide.
- * Also runs the two pieces of gameplay logic — proximity activation and shard
- * pickup — because both need the same spatial query.
+ * Owns the scene graph and the sense of place: the route, the six nodes, the
+ * corridor, per-sector environments, the sky, and the colour grade that ties
+ * them together.
+ *
+ * The colour work here matters more than any single object in it. Every frame,
+ * the nebula, the fog and the CSS accent variable are all interpolated from the
+ * two sectors the ship is between — so travelling from VENTURES to THE FORGE is
+ * a continuous slide from magenta into violet across the sky, the haze and the
+ * user interface at once. That is what makes the corridor feel like a journey
+ * rather than a series of rooms.
  */
 export class World {
   readonly group = new THREE.Group();
   readonly sectors: Sector[] = [];
+  readonly route: Route;
 
   private starfield: Starfield;
   private grid: Grid;
   private corridor: Corridor;
-  private waypoint: THREE.Group;
-  private waypointMats: THREE.MeshBasicMaterial[] = [];
-  private waypointGeo: THREE.BufferGeometry;
-  private activeSector: Sector | null = null;
-  private tmp = new THREE.Vector3();
-  private waypointColor = new THREE.Color();
+  private environment: Environment;
+  readonly nebula: Nebula;
+
+  private colA = new THREE.Color();
+  private colB = new THREE.Color();
+  private accent = new THREE.Color();
+  private deep = new THREE.Color();
+  private cloud = new THREE.Color();
+  private hotCloud = new THREE.Color();
+  private fogTint = new THREE.Color();
+  private fog: THREE.FogExp2;
 
   constructor(
-    private state: GameState,
+    scene: THREE.Scene,
+    particles: Particles,
+    impacts: Impacts,
     starCount: number,
     pixelRatio: number,
+    detail: number,
   ) {
+    this.route = new Route();
+
     for (const def of sectorDefs) {
-      const s = new Sector(def, state.shardsIn(def.id));
+      const s = new Sector(def, particles, impacts);
       this.sectors.push(s);
       this.group.add(s.object);
     }
+    // Each node's rail distance comes from the route, not from its own
+    // coordinates: the spline does not pass exactly through its control points.
+    this.sectors.forEach((s, i) => {
+      s.distance = this.route.sectorDistance[i];
+    });
+
+    this.nebula = new Nebula(detail > 0.6 ? 1 : 0.75);
+    scene.add(this.nebula.object);
 
     this.starfield = new Starfield(starCount, pixelRatio);
     this.group.add(this.starfield.object);
@@ -52,173 +86,64 @@ export class World {
     this.grid = new Grid();
     this.group.add(this.grid.object);
 
-    this.corridor = new Corridor(new THREE.Vector3(0, 10, 120));
+    this.corridor = new Corridor(this.route);
     this.group.add(this.corridor.object);
 
-    // Lighting: a cool key, a warm rim, and enough ambient to read the hulls.
-    const ambient = new THREE.AmbientLight(0x2b3d63, 1.5);
-    const key = new THREE.DirectionalLight(0x9fe8ff, 1.5);
-    key.position.set(60, 120, 40);
-    const rim = new THREE.DirectionalLight(0xff5f9e, 0.9);
-    rim.position.set(-80, -30, -120);
-    this.group.add(ambient, key, rim);
+    this.environment = new Environment(this.route, detail);
+    this.group.add(this.environment.object);
 
-    // Waypoint chevrons floating ahead of the ship, aimed at the next target.
-    this.waypoint = new THREE.Group();
-    this.waypointGeo = new THREE.ConeGeometry(0.62, 1.8, 3);
-    for (let i = 0; i < 3; i++) {
-      const mat = new THREE.MeshBasicMaterial({
-        color: 0x4de1c1,
-        transparent: true,
-        opacity: 0.42 - i * 0.11,
-        toneMapped: false,
-        depthWrite: false,
-      });
-      this.waypointMats.push(mat);
-      const cone = new THREE.Mesh(this.waypointGeo, mat);
-      // Cones are authored along +Y; tip them onto the group's +Z, which is the
-      // axis lookAt() aims at the target.
-      cone.rotation.x = Math.PI / 2;
-      cone.position.z = i * 3.2;
-      this.waypoint.add(cone);
-    }
-    this.group.add(this.waypoint);
-  }
-
-  get current(): Sector | null {
-    return this.activeSector;
+    this.fog = new THREE.FogExp2(0x05070f, 0.0012);
+    scene.fog = this.fog;
   }
 
   sector(id: SectorId): Sector | undefined {
     return this.sectors.find((s) => s.def.id === id);
   }
 
-  /** Next sector worth flying to: first unvisited, else first not decrypted. */
-  nextTarget(): Sector | null {
-    return (
-      this.sectors.find((s) => !this.state.hasVisited(s.def.id)) ??
-      this.sectors.find((s) => !s.decrypted) ??
-      null
-    );
+  /** The two-sector blend at a distance, as a colour pair plus the mix. */
+  paletteAt(distance: number): { accent: THREE.Color; deep: THREE.Color; hot: THREE.Color } {
+    const { a, b, f } = nearestPair(this.route, distance);
+    this.colA.set(sectorDefs[a].color);
+    this.colB.set(sectorDefs[b].color);
+    this.accent.copy(this.colA).lerp(this.colB, f);
+    this.deep.set(DEEP[sectorDefs[a].id]).lerp(new THREE.Color(DEEP[sectorDefs[b].id]), f);
+    return { accent: this.accent, deep: this.deep, hot: this.colB };
   }
 
-  update(elapsed: number, dt: number, ship: Ship, camera: THREE.PerspectiveCamera, pixelRatio: number): void {
-    const p = ship.object.position;
-
+  update(
+    elapsed: number,
+    dt: number,
+    ship: Ship,
+    camera: THREE.PerspectiveCamera,
+    pixelRatio: number,
+  ): THREE.Color {
     this.starfield.update(elapsed, pixelRatio);
-    this.grid.update(elapsed, p);
+    this.grid.update(elapsed, ship.object.position);
     this.corridor.update(elapsed);
+    this.environment.update(elapsed);
 
-    let nearest: Sector | null = null;
-    let nearestDist = Infinity;
+    const { accent, deep } = this.paletteAt(ship.distance);
+
+    // The sky takes a heavily dimmed sector accent for its clouds and a slightly
+    // hotter one for the filaments. Both are scaled well down: the backdrop has
+    // to sit *below* the bloom threshold or it drags the whole frame with it.
+    this.cloud.copy(accent).multiplyScalar(0.34);
+    this.hotCloud.copy(accent).lerp(WHITE, 0.35).multiplyScalar(0.5);
+    this.nebula.setPalette(this.cloud.getHex(), this.hotCloud.getHex(), deep.getHex());
+    this.nebula.update(elapsed, dt);
+
+    // Fog glues distant structures into the sky rather than leaving them
+    // floating on top of it — but only a trace of accent, and darker than the
+    // sky itself, so haze never becomes a light source.
+    this.fogTint.copy(deep).lerp(accent, 0.1).multiplyScalar(0.8);
+    this.fog.color.lerp(this.fogTint, Math.min(1, dt * 1.2));
+    setHullFog(this.fog.color, this.fog.density);
 
     for (const s of this.sectors) {
-      s.update(elapsed, dt, p, camera);
-
-      const d = p.distanceTo(s.object.position);
-      if (d < nearestDist) {
-        nearestDist = d;
-        nearest = s;
-      }
-
-      // Shard pickup.
-      for (const shard of s.shards) {
-        if (shard.collected) continue;
-        this.tmp.copy(shard.base).add(s.object.position);
-        // Generous radius scaled by speed so fast passes still register.
-        const reach = SHARD_PICKUP_DISTANCE + ship.speed * 0.07;
-        if (this.tmp.distanceToSquared(p) < reach * reach) {
-          shard.collected = true;
-          shard.pop = 0;
-          this.state.collectShard(s.def.id, shard.key);
-          if (s.decrypted) s.flashDecrypted();
-        }
-      }
+      s.update(elapsed, dt, ship.object.position, camera);
     }
 
-    // Sector activation: enter when inside the radius, leave with hysteresis so
-    // skimming the boundary cannot flicker the codex open and shut.
-    const inside = nearest && nearestDist < nearest.def.radius ? nearest : null;
-    if (inside && inside !== this.activeSector) {
-      if (this.activeSector) bus.emit('sector:leave', { id: this.activeSector.def.id });
-      this.activeSector = inside;
-      inside.entered = true;
-      this.state.visit(inside.def.id);
-      bus.emit('sector:enter', { id: inside.def.id });
-    } else if (!inside && this.activeSector) {
-      const d = p.distanceTo(this.activeSector.object.position);
-      if (d > this.activeSector.def.radius * 1.35) {
-        bus.emit('sector:leave', { id: this.activeSector.def.id });
-        this.activeSector = null;
-      }
-    }
-
-    this.updateWaypoint(ship, elapsed, dt);
-  }
-
-  private updateWaypoint(ship: Ship, elapsed: number, _dt: number): void {
-    const target = this.activeSector ? null : this.nextTarget();
-    const show = !!target;
-    this.waypoint.visible = show;
-    if (!show || !target) return;
-
-    // Sit the guide below the flight line so it never covers what you are
-    // flying toward.
-    ship.getForward(this.tmp);
-    this.waypoint.position.copy(ship.object.position).addScaledVector(this.tmp, 26);
-    this.waypoint.position.y -= 4;
-    this.waypoint.lookAt(target.object.position);
-
-    this.waypointColor.set(target.def.color);
-    this.waypointMats.forEach((m, i) => {
-      m.color.copy(this.waypointColor);
-      m.opacity = (0.42 - i * 0.11) * (0.55 + 0.45 * Math.sin(elapsed * 3 - i * 0.8));
-    });
-  }
-
-  /** What the HUD should point the visitor at next, if anything. */
-  guidance(ship: Ship): { name: string; dist: number; angle: number; color: number } | null {
-    if (this.activeSector) return null;
-    const target = this.nextTarget();
-    if (!target) return null;
-
-    const fwd = ship.getForward(this.tmp);
-    const heading = Math.atan2(fwd.x, -fwd.z);
-    const dx = target.object.position.x - ship.object.position.x;
-    const dz = target.object.position.z - ship.object.position.z;
-    let angle = Math.atan2(dx, -dz) - heading;
-    while (angle > Math.PI) angle -= Math.PI * 2;
-    while (angle < -Math.PI) angle += Math.PI * 2;
-
-    return {
-      name: target.def.name,
-      dist: ship.object.position.distanceTo(target.object.position),
-      angle,
-      color: target.def.color,
-    };
-  }
-
-  /** Distance and direction to a sector, for the HUD radar. */
-  radarData(ship: Ship): { id: SectorId; angle: number; dist: number; color: number; done: boolean }[] {
-    const out: { id: SectorId; angle: number; dist: number; color: number; done: boolean }[] = [];
-    const fwd = ship.getForward(new THREE.Vector3());
-    const heading = Math.atan2(fwd.x, -fwd.z);
-    for (const s of this.sectors) {
-      const dx = s.object.position.x - ship.object.position.x;
-      const dz = s.object.position.z - ship.object.position.z;
-      const bearing = Math.atan2(dx, -dz);
-      let angle = bearing - heading;
-      while (angle > Math.PI) angle -= Math.PI * 2;
-      while (angle < -Math.PI) angle += Math.PI * 2;
-      out.push({
-        id: s.def.id,
-        angle,
-        dist: Math.hypot(dx, dz),
-        color: s.def.color,
-        done: s.decrypted,
-      });
-    }
-    return out;
+    return accent;
   }
 
   dispose(): void {
@@ -226,7 +151,7 @@ export class World {
     this.starfield.dispose();
     this.grid.dispose();
     this.corridor.dispose();
-    this.waypointGeo.dispose();
-    for (const m of this.waypointMats) m.dispose();
+    this.environment.dispose();
+    this.nebula.dispose();
   }
 }

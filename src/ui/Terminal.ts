@@ -27,7 +27,7 @@ export class Terminal {
   constructor(
     parent: HTMLElement,
     private state: GameState,
-    private hooks: { warp(id: SectorId): void; brief(on: boolean): void; reset(): void },
+    private hooks: { warp(id: SectorId): void; brief(on: boolean): void; reset(): void; dossier(id: SectorId): void },
   ) {
     this.log = el('div', { class: 'terminal__log scroll' });
     this.input = el('input', {
@@ -48,7 +48,7 @@ export class Terminal {
     this.root = el('div', { class: 'terminal', role: 'dialog', 'aria-label': 'Terminal', 'aria-hidden': 'true' }, [
       el('div', { class: 'terminal__bar' }, [
         el('span', { class: 'terminal__dot' }),
-        el('span', { text: 'signal terminal — v2.0' }),
+        el('span', { text: 'signal terminal — v3.0' }),
       ]),
       this.log,
       form,
@@ -188,7 +188,25 @@ export class Terminal {
         this.print(`xp       ${this.state.xp}`);
         this.print(`shards   ${this.state.collected}/${this.state.totalShards}`);
         this.print(`sectors  ${this.state.data.visited.length}/${sectors.length} visited`);
+        this.print(`kills    ${this.state.kills}`);
+        this.print(`nodes    ${this.state.nodesBroken}/${sectors.length} broken`);
         this.print(`awards   ${this.state.data.achievements.length} unlocked`);
+      },
+    });
+
+    add({
+      name: 'dossier',
+      args: '<sector>',
+      help: 'open a sector dossier without flying there',
+      run: (args) => {
+        const key = (args[0] ?? '').toLowerCase();
+        const target = sectors.find((s) => s.id === key || s.name.toLowerCase().startsWith(key));
+        if (!key || !target) {
+          this.print('usage: dossier <origin|ventures|forge|arcade|track|uplink>', 'err');
+          return;
+        }
+        this.hooks.dossier(target.id);
+        this.print(`opening ${target.name} dossier`, 'ok');
       },
     });
 

@@ -1,176 +1,195 @@
 import { el, icons, hex } from './dom';
 import { bus } from '../core/Events';
 import type { GameState } from '../game/GameState';
-import type { World } from '../world/World';
 import type { Ship } from '../player/Ship';
-import { sectorById, type SectorId } from '../data/sectors';
+import type { Director } from '../game/Mission';
+import { sectors, sectorById, type SectorId } from '../data/sectors';
 
-const RADAR_RANGE = 620;
-
-/** Rank, shard count, radar and the sector banner. */
+/**
+ * The heads-up display.
+ *
+ * Organised around one rule: **the objective is the most important thing on
+ * screen and it is never absent.** Everything else — rank, hull, speed, the
+ * route spine — is peripheral state a player can choose to read. The objective
+ * line is the thing that stops a visitor from wondering what this site wants
+ * from them, and it is pinned top-centre where the eye already is.
+ *
+ * The whole HUD is DOM, not canvas. It costs nothing to render, it scales with
+ * the viewport for free, and it is the only sane way to get real typography over
+ * a WebGL scene.
+ */
 export class Hud {
   readonly root: HTMLElement;
 
+  private objTitle: HTMLElement;
+  private objDetail: HTMLElement;
+  private objChip: HTMLElement;
+  private objective: HTMLElement;
+
+  private boss: HTMLElement;
+  private bossName: HTMLElement;
+  private bossShield: HTMLElement;
+  private bossCore: HTMLElement;
+  private bossPhase: HTMLElement;
+
+  private spine: HTMLElement;
+  private spineFill: HTMLElement;
+  private spineDots: HTMLElement[] = [];
+
   private rankName: HTMLElement;
   private rankXp: HTMLElement;
-  private bar: HTMLElement;
+  private rankBar: HTMLElement;
   private shardCount: HTMLElement;
-  private banner: HTMLElement;
-  private bannerCode: HTMLElement;
-  private bannerName: HTMLElement;
-  private bannerSub: HTMLElement;
-  private hint: HTMLElement;
-  private touchHint: HTMLElement;
-  private target: HTMLElement;
-  private targetArrow: HTMLElement;
-  private targetName: HTMLElement;
-  private targetDist: HTMLElement;
-  private blips!: SVGGElement;
-  private blipNodes: SVGCircleElement[] = [];
-  private bannerTimer = 0;
 
-  constructor(parent: HTMLElement, private state: GameState) {
+  private hullBar: HTMLElement;
+  private hullWrap: HTMLElement;
+  private speedNum: HTMLElement;
+  private boostPip: HTMLElement;
+
+  private reticle: HTMLElement;
+  private hint: HTMLElement;
+
+  private lastTitle = '';
+  private lastDetail = '';
+  private lastPhase = '';
+  private lowHullSince = 0;
+
+  constructor(parent: HTMLElement, private state: GameState, coarse: boolean) {
+    /* ---------------------------------------------------- objective */
+    this.objChip = el('span', { class: 'obj__chip', text: 'SEC-01' });
+    this.objTitle = el('div', { class: 'obj__title' });
+    this.objDetail = el('div', { class: 'obj__detail' });
+    this.objective = el('div', { class: 'obj', role: 'status', 'aria-live': 'polite' }, [
+      el('div', { class: 'obj__head' }, [el('span', { class: 'obj__label', text: 'Objective' }), this.objChip]),
+      this.objTitle,
+      this.objDetail,
+    ]);
+
+    /* --------------------------------------------------------- boss */
+    this.bossName = el('span', { class: 'boss__name' });
+    this.bossPhase = el('span', { class: 'boss__phase' });
+    this.bossShield = el('i');
+    this.bossCore = el('i');
+    this.boss = el('div', { class: 'boss', 'aria-hidden': 'true' }, [
+      el('div', { class: 'boss__head' }, [this.bossName, this.bossPhase]),
+      // Two stacked bars: the shield drains first, then the core. Splitting them
+      // makes a two-phase fight legible without a word of explanation.
+      el('div', { class: 'boss__bars' }, [
+        el('div', { class: 'boss__bar boss__bar--shield' }, [this.bossShield]),
+        el('div', { class: 'boss__bar boss__bar--core' }, [this.bossCore]),
+      ]),
+    ]);
+
+    /* -------------------------------------------------------- spine */
+    this.spineFill = el('i');
+    const dots = sectors.map((s, i) => {
+      const dot = el('button', {
+        class: 'spine__dot',
+        type: 'button',
+        'data-sector': s.id,
+        'aria-label': `${s.code} ${s.name}`,
+        title: `${s.code} — ${s.name}`,
+      }, [
+        el('span', { class: 'spine__pip' }),
+        el('span', { class: 'spine__name', text: s.name }),
+      ]);
+      this.spineDots.push(dot);
+      void i;
+      return dot;
+    });
+    this.spine = el('nav', { class: 'spine', 'aria-label': 'Route progress' }, [
+      el('div', { class: 'spine__track' }, [this.spineFill]),
+      ...dots,
+    ]);
+
+    /* --------------------------------------------------------- rank */
     this.rankName = el('span', { class: 'rank__name', text: state.rank });
-    this.rankXp = el('span', { text: `${state.xp} XP` });
-    this.bar = el('i');
+    this.rankXp = el('span', { class: 'rank__xp', text: `${state.xp} XP` });
+    this.rankBar = el('i');
     this.shardCount = el('b', { text: `${state.collected}/${state.totalShards}` });
 
-    this.bannerCode = el('div', { class: 'banner__code' });
-    this.bannerName = el('h2', { class: 'banner__name' });
-    this.bannerSub = el('div', { class: 'banner__sub' });
-    this.banner = el('div', { class: 'banner', 'aria-hidden': 'true' }, [
-      this.bannerCode,
-      this.bannerName,
-      this.bannerSub,
+    /* --------------------------------------------------- flight data */
+    this.hullBar = el('i');
+    this.hullWrap = el('div', { class: 'hull' }, [
+      el('span', { class: 'hull__label', text: 'Hull' }),
+      el('div', { class: 'hull__bar' }, [this.hullBar]),
+    ]);
+    this.speedNum = el('b', { text: '0' });
+    this.boostPip = el('span', { class: 'flight__boost', text: 'BOOST' });
+
+    /* ------------------------------------------------------ reticle */
+    this.reticle = el('div', { class: 'reticle', 'aria-hidden': 'true' }, [
+      el('span', { class: 'reticle__ring' }),
+      el('span', { class: 'reticle__dot' }),
+      el('span', { class: 'reticle__tick reticle__tick--l' }),
+      el('span', { class: 'reticle__tick reticle__tick--r' }),
     ]);
 
-    this.hint = el('div', { class: 'hint' }, [
-      el('span', { html: '<kbd>W A S D</kbd>fly' }),
-      el('span', { html: '<kbd>Shift</kbd>boost' }),
-      el('span', { html: '<kbd>~</kbd>terminal' }),
-      el('span', { html: '<kbd>Esc</kbd>close' }),
-    ]);
-
-    this.touchHint = el('div', { class: 'hint hint--touch' }, [
-      el('span', { text: 'drag to fly' }),
-      el('span', { text: 'hold to boost' }),
-    ]);
-
-    this.targetArrow = el('span', { class: 'target__arrow', html: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 20 20 12 16 4 20Z"/></svg>' });
-    this.targetName = el('b');
-    this.targetDist = el('span', { class: 'target__dist' });
-    this.target = el('div', { class: 'target' }, [
-      this.targetArrow,
-      el('span', { class: 'target__label', text: 'next' }),
-      this.targetName,
-      this.targetDist,
-    ]);
-
-    const radar = this.buildRadar();
+    this.hint = el('div', { class: 'hint' }, coarse
+      ? [
+          el('span', { text: 'Drag to fly' }),
+          el('span', { text: 'Guns are automatic' }),
+          el('span', { text: 'BOOST to accelerate' }),
+        ]
+      : [
+          el('span', { html: '<kbd>Mouse</kbd> or <kbd>WASD</kbd> to fly' }),
+          el('span', { html: '<kbd>Click</kbd> / <kbd>Space</kbd> to fire' }),
+          el('span', { html: '<kbd>Shift</kbd> boost' }),
+          el('span', { html: '<kbd>H</kbd> help' }),
+        ]);
 
     this.root = el('div', { class: 'hud' }, [
-      this.banner,
-      el('div', { class: 'hud__stats' }, [
-        el('div', { class: 'rank' }, [this.rankName, this.rankXp]),
-        el('div', { class: 'bar' }, [this.bar]),
-        el('div', { class: 'shards' }, [
-          el('span', { html: icons.shard }),
-          this.shardCount,
-          el('span', { text: 'data shards' }),
+      this.reticle,
+      el('div', { class: 'hud__top' }, [this.objective, this.boss]),
+      this.spine,
+      el('div', { class: 'hud__bottom' }, [
+        el('div', { class: 'stats' }, [
+          el('div', { class: 'rank' }, [this.rankName, this.rankXp]),
+          el('div', { class: 'rank__track' }, [this.rankBar]),
+          el('div', { class: 'shards' }, [
+            el('span', { class: 'shards__icon', html: icons.shard }),
+            this.shardCount,
+            el('span', { class: 'shards__label', text: 'data shards' }),
+          ]),
         ]),
+        el('div', { class: 'flight' }, [
+          this.hullWrap,
+          el('div', { class: 'flight__speed' }, [this.speedNum, el('span', { text: 'm/s' }), this.boostPip]),
+        ]),
+        this.hint,
       ]),
-      radar,
-      this.target,
-      this.hint,
-      this.touchHint,
     ]);
 
     parent.append(this.root);
 
     bus.on('xp:change', () => this.syncStats());
-    bus.on('shard:collect', () => this.syncStats());
-    bus.on('sector:enter', ({ id }) => this.showBanner(id));
+    bus.on('shard:collect', () => {
+      this.syncStats();
+      this.pop(this.shardCount);
+    });
     this.syncStats();
   }
 
-  private buildRadar(): HTMLElement {
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('viewBox', '-50 -50 100 100');
-
-    const cone = document.createElementNS(NS, 'path');
-    cone.setAttribute('class', 'radar__cone');
-    // 90° forward wedge, pointing up.
-    cone.setAttribute('d', 'M0 0 L-31.8 -31.8 A45 45 0 0 1 31.8 -31.8 Z');
-
-    const ring = document.createElementNS(NS, 'circle');
-    ring.setAttribute('class', 'radar__ring');
-    ring.setAttribute('r', '45');
-
-    const inner = document.createElementNS(NS, 'circle');
-    inner.setAttribute('class', 'radar__cross');
-    inner.setAttribute('r', '24');
-    inner.setAttribute('fill', 'none');
-
-    const v = document.createElementNS(NS, 'line');
-    v.setAttribute('class', 'radar__cross');
-    v.setAttribute('x1', '0');
-    v.setAttribute('y1', '-45');
-    v.setAttribute('x2', '0');
-    v.setAttribute('y2', '45');
-
-    const h = document.createElementNS(NS, 'line');
-    h.setAttribute('class', 'radar__cross');
-    h.setAttribute('x1', '-45');
-    h.setAttribute('y1', '0');
-    h.setAttribute('x2', '45');
-    h.setAttribute('y2', '0');
-
-    this.blips = document.createElementNS(NS, 'g');
-
-    const self = document.createElementNS(NS, 'path');
-    self.setAttribute('class', 'radar__self');
-    self.setAttribute('d', 'M0 -5 L4 4 L0 1.6 L-4 4 Z');
-
-    svg.append(ring, cone, inner, v, h, this.blips, self);
-
-    return el('div', { class: 'radar', 'aria-hidden': 'true' }, [
-      svg,
-      el('div', { class: 'radar__label', text: 'scanner' }),
-    ]);
+  /** Wire the route spine's dots as jump buttons. */
+  onJump(fn: (id: SectorId) => void): void {
+    this.spineDots.forEach((dot) => {
+      const id = dot.dataset.sector as SectorId;
+      dot.addEventListener('click', () => fn(id));
+    });
   }
 
   private syncStats(): void {
     this.rankName.textContent = this.state.rank;
     this.rankXp.textContent = `${this.state.xp} XP`;
-    this.bar.style.width = `${Math.round(this.state.rankPct * 100)}%`;
+    this.rankBar.style.width = `${Math.round(this.state.rankPct * 100)}%`;
     this.shardCount.textContent = `${this.state.collected}/${this.state.totalShards}`;
   }
 
-  private showBanner(id: SectorId): void {
-    const def = sectorById.get(id);
-    if (!def) return;
-    this.bannerCode.textContent = def.code;
-    this.bannerName.textContent = def.name;
-    this.bannerSub.textContent = def.subtitle;
-    this.banner.style.setProperty('--accent', hex(def.color));
-    this.banner.classList.add('on');
-    window.clearTimeout(this.bannerTimer);
-    this.bannerTimer = window.setTimeout(() => this.banner.classList.remove('on'), 3200);
-  }
-
-  private updateTarget(world: World, ship: Ship): void {
-    const g = world.guidance(ship);
-    if (!g) {
-      this.target.classList.remove('on');
-      return;
-    }
-    this.target.classList.add('on');
-    this.target.style.setProperty('--accent', hex(g.color));
-    if (this.targetName.textContent !== g.name) this.targetName.textContent = g.name;
-    const metres = Math.round(g.dist);
-    this.targetDist.textContent = `${metres}m`;
-    this.targetArrow.style.transform = `rotate(${(g.angle * 180) / Math.PI}deg)`;
+  /** Retrigger a CSS animation by removing and re-adding the class. */
+  private pop(node: HTMLElement): void {
+    node.classList.remove('pop');
+    void node.offsetWidth;
+    node.classList.add('pop');
   }
 
   setVisible(on: boolean): void {
@@ -179,33 +198,77 @@ export class Hud {
 
   fadeHint(): void {
     this.hint.classList.add('fade');
-    this.touchHint.classList.add('fade');
   }
 
-  /** Called every frame; cheap DOM writes only. */
-  update(world: World, ship: Ship): void {
-    this.updateTarget(world, ship);
+  /** Move the aiming reticle. Coordinates are normalised -1..1. */
+  setReticle(x: number, y: number, active: boolean): void {
+    this.reticle.classList.toggle('on', active);
+    if (!active) return;
+    this.reticle.style.transform = `translate(-50%, -50%) translate(${x * 50}vw, ${y * 50}vh)`;
+  }
 
-    const data = world.radarData(ship);
-    const NS = 'http://www.w3.org/2000/svg';
-
-    while (this.blipNodes.length < data.length) {
-      const c = document.createElementNS(NS, 'circle');
-      c.setAttribute('r', '2.6');
-      this.blips.append(c);
-      this.blipNodes.push(c);
+  /** Called every frame. Every write is guarded so the DOM only churns on change. */
+  update(ship: Ship, director: Director, elapsed: number): void {
+    /* objective */
+    if (director.objectiveTitle !== this.lastTitle) {
+      this.lastTitle = director.objectiveTitle;
+      this.objTitle.textContent = director.objectiveTitle;
+      this.pop(this.objective);
+    }
+    if (director.objectiveDetail !== this.lastDetail) {
+      this.lastDetail = director.objectiveDetail;
+      this.objDetail.textContent = director.objectiveDetail;
+    }
+    const def = sectorById.get(director.currentSectorId);
+    if (def && this.objChip.textContent !== def.code) {
+      this.objChip.textContent = def.code;
+      this.objective.style.setProperty('--accent', hex(def.color));
     }
 
-    data.forEach((d, i) => {
-      const node = this.blipNodes[i];
-      const r = Math.min(1, d.dist / RADAR_RANGE) * 42;
-      const x = Math.sin(d.angle) * r;
-      const y = -Math.cos(d.angle) * r;
-      node.setAttribute('cx', x.toFixed(1));
-      node.setAttribute('cy', y.toFixed(1));
-      node.setAttribute('fill', hex(d.color));
-      node.setAttribute('opacity', d.done ? '0.35' : '0.95');
-      node.setAttribute('r', d.done ? '1.9' : '2.6');
+    /* boss */
+    const node = director.activeNode;
+    const phase = node ? (node.shielded ? 'shield' : 'core') : 'none';
+    if (phase !== this.lastPhase) {
+      this.lastPhase = phase;
+      this.boss.classList.toggle('on', phase !== 'none');
+      if (node) {
+        this.bossName.textContent = node.def.name + ' NODE';
+        this.boss.style.setProperty('--accent', hex(node.def.color));
+      }
+      this.bossPhase.textContent = phase === 'shield' ? 'Shield integrity' : phase === 'core' ? 'Core exposed' : '';
+      this.boss.classList.toggle('breached', phase === 'core');
+    }
+    if (node) {
+      this.bossShield.style.width = `${node.shieldPct * 100}%`;
+      this.bossCore.style.width = `${node.corePct * 100}%`;
+    }
+
+    /* route spine */
+    // One custom property drives both orientations: the spine is vertical on a
+    // desktop and horizontal along the bottom on a phone.
+    const p = director.progress(ship);
+    this.spineFill.style.setProperty('--fill', `${(p * 100).toFixed(1)}%`);
+    this.spineDots.forEach((dot, i) => {
+      const done = this.state.isDecrypted(sectors[i].id);
+      dot.classList.toggle('done', done);
+      dot.classList.toggle('active', i === director.targetIndex);
     });
+
+    /* flight data */
+    const speed = Math.round(ship.speed);
+    if (this.speedNum.textContent !== String(speed)) this.speedNum.textContent = String(speed);
+    this.boostPip.classList.toggle('on', ship.boostAmount > 0.35);
+    this.hullBar.style.width = `${Math.max(0, ship.integrity) * 100}%`;
+    const low = ship.integrity < 0.35;
+    this.hullWrap.classList.toggle('low', low);
+    // Only start the alarm class after the hull has been low for a moment, so a
+    // single graze does not set the whole interface flashing.
+    if (low) {
+      if (this.lowHullSince === 0) this.lowHullSince = elapsed;
+      this.hullWrap.classList.toggle('critical', elapsed - this.lowHullSince > 0.4);
+    } else {
+      this.lowHullSince = 0;
+      this.hullWrap.classList.remove('critical');
+    }
   }
 }

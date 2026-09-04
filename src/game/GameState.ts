@@ -13,6 +13,7 @@ export const RANKS = [
 export const XP_PER_SHARD = 25;
 export const XP_PER_SECTOR = 40;
 export const XP_PER_DECRYPT = 60;
+export const XP_PER_NODE = 90;
 
 export interface AchievementDef {
   id: string;
@@ -31,6 +32,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'all-sectors', name: 'Full Sweep', note: 'Visited all six sectors' },
   { id: 'completionist', name: 'Completionist', note: 'Collected every shard on the map' },
   { id: 'brief', name: 'Straight To Business', note: 'Switched to the written brief' },
+  { id: 'first-blood', name: 'First Blood', note: 'Destroyed your first hostile' },
+  { id: 'node-1', name: 'Codebreaker', note: 'Broke an encryption node' },
+  { id: 'sharpshooter', name: 'Sharpshooter', note: 'Twenty-five hostiles destroyed' },
+  { id: 'gunner', name: 'Gunnery Certified', note: 'One hundred hostiles destroyed' },
+  { id: 'unshaken', name: 'Unshaken', note: 'Broke a node at full hull integrity' },
 ];
 
 const achievementById = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
@@ -115,16 +121,45 @@ export class GameState {
     this.unlock('first-shard');
     if (this.streak >= 4) this.unlock('streak-5');
 
+    // The mission director owns the 'sector:decrypted' and 'complete' events —
+    // it breaks the node before the shards land, so announcing it from here too
+    // would fire the same toast twice, several seconds late.
     if (this.isDecrypted(sector)) {
       this.addXp(XP_PER_DECRYPT);
       this.unlock('decrypt-1');
-      bus.emit('sector:decrypted', { id: sector });
     }
-    if (this.collected >= totalShards) {
-      this.unlock('completionist');
-      bus.emit('complete', undefined);
-    }
+    if (this.collected >= totalShards) this.unlock('completionist');
     return true;
+  }
+
+  /** A hostile went down. */
+  recordKill(xp: number): void {
+    this.data.kills += 1;
+    this.addXp(xp);
+    bus.emit('enemy:killed', { xp });
+    this.unlock('first-blood');
+    if (this.data.kills >= 25) this.unlock('sharpshooter');
+    if (this.data.kills >= 100) this.unlock('gunner');
+  }
+
+  /** An encryption node was broken. `clean` means the run-in cost no hull. */
+  recordNode(clean: boolean): void {
+    this.data.nodes += 1;
+    this.addXp(XP_PER_NODE);
+    this.unlock('node-1');
+    if (clean) this.unlock('unshaken');
+  }
+
+  get kills(): number {
+    return this.data.kills;
+  }
+
+  get nodesBroken(): number {
+    return this.data.nodes;
+  }
+
+  get achievements(): string[] {
+    return this.data.achievements;
   }
 
   visit(id: SectorId): void {

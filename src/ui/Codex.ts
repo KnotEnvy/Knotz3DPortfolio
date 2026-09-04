@@ -15,9 +15,15 @@ export class Codex {
   private pips: HTMLElement;
   private pipLabel: HTMLElement;
   private body: HTMLElement;
+  private foot: HTMLElement;
+  private continueBtn: HTMLButtonElement;
+  private closeBtn: HTMLButtonElement;
   private current: SectorDef | null = null;
+  private lastFocus: Element | null = null;
+  /** True when this dossier was opened by breaking a node, so flight is held. */
+  private gating = false;
 
-  constructor(parent: HTMLElement, private state: GameState) {
+  constructor(parent: HTMLElement, private state: GameState, private onContinue: () => void) {
     this.eyebrow = el('div', { class: 'codex__eyebrow' });
     this.title = el('h2', { class: 'codex__title' });
     this.sub = el('div', { class: 'codex__sub' });
@@ -25,32 +31,50 @@ export class Codex {
     this.pipLabel = el('span');
     this.body = el('div', { class: 'codex__body scroll', tabindex: '0' });
 
+    // The single most important control in the game. Breaking a node stops the
+    // ship and opens the dossier; this button is how the visitor says "read it,
+    // I'm done" and gets moving again. It is also why nothing auto-closes.
+    this.continueBtn = el('button', {
+      class: 'btn btn--primary codex__continue',
+      type: 'button',
+      text: 'Continue the run',
+      onclick: () => {
+        this.gating = false;
+        this.close();
+        this.onContinue();
+      },
+    }) as HTMLButtonElement;
+
+    this.closeBtn = el('button', {
+      class: 'codex__close',
+      type: 'button',
+      'aria-label': 'Close dossier',
+      html: icons.close,
+      onclick: () => this.close(),
+    }) as HTMLButtonElement;
+
+    this.foot = el('footer', { class: 'codex__foot' }, [this.continueBtn]);
+
     this.root = el(
       'aside',
       { class: 'codex', role: 'complementary', 'aria-label': 'Sector dossier', 'aria-hidden': 'true' },
       [
         el('header', { class: 'codex__head' }, [
           el('div', {}, [this.eyebrow, this.title, this.sub]),
-          el('button', {
-            class: 'codex__close',
-            type: 'button',
-            'aria-label': 'Close dossier',
-            html: icons.close,
-            onclick: () => this.close(),
-          }),
+          this.closeBtn,
         ]),
         el('div', { class: 'codex__progress' }, [this.pips, this.pipLabel]),
         this.body,
+        this.foot,
       ],
     );
 
     parent.append(this.root);
 
-    // Deliberately not closed on 'sector:leave'. Arriving opens the dossier and
-    // the ship keeps drifting; auto-closing it a few seconds later would snatch
-    // the content away mid-sentence. It closes when the reader says so, or when
-    // another sector replaces it.
-    bus.on('sector:enter', ({ id }) => this.open(id));
+    // Nothing here opens or closes itself on proximity. The mission director
+    // decides when a dossier is earned, and only the reader decides when they
+    // are finished with it — an earlier build closed dossiers a few seconds
+    // after arrival, which snatched content away mid-sentence.
     bus.on('shard:collect', ({ sector }) => {
       if (this.current?.id === sector) this.syncProgress();
     });
@@ -63,14 +87,24 @@ export class Codex {
     return this.root.classList.contains('on');
   }
 
-  open(id: SectorId): void {
+  /**
+   * Show a sector's dossier. `gating` marks the case where the ship is being
+   * held for reading, which is when the Continue button appears.
+   */
+  open(id: SectorId, gating = false): void {
     const def = sectorById.get(id);
     if (!def) return;
+    this.lastFocus = document.activeElement;
     this.current = def;
+    this.gating = gating;
     this.render(def);
+    this.foot.hidden = !gating;
     this.root.classList.add('on');
     this.root.setAttribute('aria-hidden', 'false');
     this.body.scrollTop = 0;
+    // Move focus into the panel. Without this a keyboard user is handed a
+    // scrollable region they have no way to reach.
+    requestAnimationFrame(() => (gating ? this.continueBtn : this.body).focus());
     bus.emit('codex:open', { id });
   }
 
@@ -78,7 +112,18 @@ export class Codex {
     if (!this.isOpen) return;
     this.root.classList.remove('on');
     this.root.setAttribute('aria-hidden', 'true');
+    if (this.lastFocus instanceof HTMLElement) this.lastFocus.focus();
     bus.emit('codex:close', undefined);
+    // Dismissing a gating dossier still has to release the ship, or the visitor
+    // is left hovering in front of a dead node with no way forward.
+    if (this.gating) {
+      this.gating = false;
+      this.onContinue();
+    }
+  }
+
+  get isGating(): boolean {
+    return this.gating;
   }
 
   private syncProgress(): void {
@@ -170,11 +215,12 @@ export class Codex {
                     c.meta.map((m) => el('span', { text: m })),
                   )
                 : null,
-              c.href || c.href2
-                ? el('div', { class: 'cx-links' }, [
-                    c.href ? this.link(c.href, linkLabel(c.href)) : null,
-                    c.href2 ? this.link(c.href2, 'Live site') : null,
-                  ])
+              c.links?.length
+                ? el(
+                    'div',
+                    { class: 'cx-links' },
+                    c.links.map((l) => this.link(l.href, l.label, l.live)),
+                  )
                 : null,
             ]),
           ),
@@ -228,15 +274,11 @@ export class Codex {
     }
   }
 
-  private link(href: string, label: string): HTMLElement {
+  private link(href: string, label: string, live = false): HTMLElement {
     return el(
       'a',
-      { class: 'cx-link', href, target: '_blank', rel: 'noopener noreferrer' },
-      [el('span', { text: label }), el('span', { html: icons.external })],
+      { class: live ? 'cx-link cx-link--live' : 'cx-link', href, target: '_blank', rel: 'noopener noreferrer' },
+      [el('span', { html: live ? icons.play : icons.external }), el('span', { text: label })],
     );
   }
-}
-
-function linkLabel(href: string): string {
-  return href.includes('github.com') ? 'Source' : 'Visit';
 }

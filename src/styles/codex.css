@@ -493,3 +493,79 @@
     transform: none;
   }
 }
+
+
+/* ------------------------------------------------------- continue / links */
+
+/*
+ * The Continue button. Breaking a node stops the ship and opens the dossier, so
+ * this is how the visitor says "read it, moving on". It is pinned to the bottom
+ * of the panel rather than the end of the scroll, because a reader who has had
+ * enough after two paragraphs must not have to scroll to the end of a chapter to
+ * get out of it.
+ */
+.codex__foot {
+  flex: none;
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.85rem 1.15rem calc(0.85rem + var(--safe-b));
+  border-top: 1px solid var(--hair);
+  background: linear-gradient(180deg, rgba(8, 12, 22, 0.4), rgba(8, 12, 22, 0.85));
+}
+
+.codex__continue {
+  flex: 1;
+}
+
+.codex__continue::after {
+  content: '→';
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.cx-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.cx-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--hair-strong);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  transition: all 0.16s var(--ease);
+}
+
+.cx-link:hover {
+  color: #fff;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  text-decoration: none;
+}
+
+.cx-link svg {
+  width: 0.85em;
+  height: 0.85em;
+}
+
+/* Anything playable right now gets the loudest treatment on the card. */
+.cx-link--live {
+  border-color: color-mix(in srgb, var(--live) 60%, transparent);
+  background: color-mix(in srgb, var(--live) 14%, transparent);
+  color: var(--live);
+  font-weight: 600;
+}
+
+.cx-link--live:hover {
+  background: var(--live);
+  border-color: var(--live);
+  color: #04150c;
+}

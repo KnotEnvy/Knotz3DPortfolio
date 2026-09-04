@@ -7,6 +7,12 @@ export interface AppEvents {
   'sector:leave': { id: SectorId };
   'sector:decrypted': { id: SectorId };
   'shard:collect': { sector: SectorId; total: number; xp: number };
+  'mission:card': { code: string; name: string; subtitle: string; brief: string; index: number; total: number; color: number };
+  'wave:spawn': { index: number; count: number };
+  'node:armed': { id: SectorId; name: string };
+  'enemy:killed': { xp: number };
+  'player:hit': { integrity: number };
+  'dossier:continue': void;
   'xp:change': { xp: number; level: number; rank: string; pct: number };
   'achievement': { id: string; name: string; note: string };
   'mode:brief': { on: boolean };

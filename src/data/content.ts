@@ -96,7 +96,10 @@ export interface Project {
   stack: string[];
   highlights: string[];
   repo?: string;
+  /** Playable or browsable right now. Labelled as such everywhere it appears. */
   live?: string;
+  /** A second live surface — a companion app, an admin tool. */
+  live2?: { label: string; href: string };
   scale?: string;
 }
 
@@ -229,13 +232,32 @@ export const projects: Project[] = [
       'What started as a canvas experiment is now a Phaser 3 arcade shooter with an attract screen, an armory of guns and assist chips, staged waves, bosses, bonus rounds, star-graded run reports and coin-based persistent progression. It is the clearest example of how I take a prototype and drive it to a finished, replayable product.',
     stack: ['Phaser 3', 'TypeScript', 'Vite', 'localStorage persistence'],
     highlights: [
-      'Attract screen, armory, options and full 90s cabinet loop',
-      'Permanent upgrades and unlocks funded by run performance',
-      'Star grading on score, accuracy, stage, boss kills and drops',
+      'Nine raven runs with boss fights and a Jackpot Alley bonus round',
+      'Persistent armory upgrades funded by run performance',
+      'S-rank stage grading and local records',
       'Motion, shake and audio accessibility toggles',
     ],
     repo: 'https://github.com/KnotEnvy/Knotz-Raven-Mayhem',
+    live: 'https://knotenvy.github.io/Knotz-Raven-Mayhem/',
     scale: 'Arcade',
+  },
+  {
+    id: 'invadespace',
+    name: 'Knotz: Invade Space',
+    kind: 'game',
+    headline: 'A story-driven space-shooter roguelite that runs in a tab.',
+    body:
+      'A five-sector campaign to break the siege of Earth, structured as a roguelite: clear a sector, dock with the UES Orion carrier, spend what you earned on permanent upgrades, go back out further than last time. There is an endless mode for score chasers and seeded daily challenges so everyone gets the same run — which means the generator had to be deterministic, not merely random. Keyboard, mouse and touch all play it, with no install and no account.',
+    stack: ['TypeScript', 'Canvas', 'Vite', 'Seeded procedural generation', 'localStorage persistence'],
+    highlights: [
+      'Five-sector campaign with a carrier hub between missions',
+      'Roguelite meta-progression: credits spent on permanent upgrades',
+      'Seeded daily challenges — deterministic runs shared by every player',
+      'One build plays on keyboard, mouse and touch',
+    ],
+    repo: 'https://github.com/KnotEnvy/KnotzInvadeSpace',
+    live: 'https://knotenvy.github.io/KnotzInvadeSpace/',
+    scale: 'Roguelite',
   },
   {
     id: 'dazzlesite',
@@ -253,6 +275,7 @@ export const projects: Project[] = [
     ],
     repo: 'https://github.com/KnotEnvy/dazzle-divas-cleaning',
     live: 'https://www.dazzledivascleaning.com/',
+    live2: { label: 'Field Checklist app', href: 'https://app.dazzledivascleaning.com/' },
     scale: 'Production',
   },
   {

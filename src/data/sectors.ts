@@ -9,7 +9,17 @@ export type Block =
   | { t: 'para'; text: string }
   | { t: 'list'; items: string[] }
   | { t: 'stats'; items: { label: string; value: string; note?: string }[] }
-  | { t: 'cards'; items: { title: string; sub?: string; text: string; meta?: string[]; href?: string; href2?: string }[] }
+  | {
+      t: 'cards';
+      items: {
+        title: string;
+        sub?: string;
+        text: string;
+        meta?: string[];
+        /** Rendered in order. `live` marks the one worth pressing first. */
+        links?: { label: string; href: string; live?: boolean }[];
+      }[];
+    }
   | { t: 'timeline'; items: { title: string; sub: string; period: string; points: string[]; current?: boolean }[] }
   | { t: 'chips'; group: string; items: string[] }
   | { t: 'quote'; text: string; by?: string }
@@ -39,18 +49,26 @@ const ventureCards = ventures.map((v) => ({
   sub: `${v.role} · ${v.period}`,
   text: v.summary,
   meta: v.metrics.map((m) => `${m.value} ${m.label}`),
-  href: v.url,
+  links: v.url ? [{ label: 'Visit site', href: v.url, live: true }] : [],
 }));
 
+/**
+ * A project as a dossier card. Anything playable in a browser leads with that,
+ * because a link a client can press and immediately use is worth more than any
+ * paragraph describing it.
+ */
 const projectCard = (id: string) => {
   const p = projects.find((x) => x.id === id)!;
+  const links: { label: string; href: string; live?: boolean }[] = [];
+  if (p.live) links.push({ label: p.kind === 'game' ? 'Play it now' : 'Open it live', href: p.live, live: true });
+  if (p.live2) links.push({ label: p.live2.label, href: p.live2.href, live: true });
+  if (p.repo) links.push({ label: 'Source', href: p.repo });
   return {
     title: p.name,
     sub: p.headline,
     text: p.body,
     meta: p.stack,
-    href: p.repo,
-    href2: p.live,
+    links,
   };
 };
 
@@ -63,7 +81,7 @@ export const sectors: SectorDef[] = [
     subtitle: 'Who you are dealing with',
     form: 'knot',
     color: 0x4de1c1,
-    position: [0, 0, -70],
+    position: [0, 0, -260],
     shards: 5,
     radius: 58,
     blocks: [
@@ -92,7 +110,7 @@ export const sectors: SectorDef[] = [
     subtitle: 'Businesses I own and run',
     form: 'twin',
     color: 0xff3d81,
-    position: [-150, 26, -250],
+    position: [-190, 40, -700],
     shards: 6,
     radius: 60,
     blocks: [
@@ -121,7 +139,7 @@ export const sectors: SectorDef[] = [
     subtitle: 'AI engineering',
     form: 'reactor',
     color: 0x8b5cf6,
-    position: [120, -22, -430],
+    position: [150, -30, -1180],
     shards: 7,
     radius: 62,
     blocks: [
@@ -153,18 +171,25 @@ export const sectors: SectorDef[] = [
     subtitle: 'Game development',
     form: 'cabinet',
     color: 0xffb454,
-    position: [-100, 44, -620],
+    position: [-160, 60, -1660],
     shards: 6,
     radius: 60,
     blocks: [
       {
         t: 'lead',
         text:
-          'Engines, physics, entity-component systems and progression economies. Games are where you learn to make software that has to be right sixty times a second.',
+          'Engines, physics, entity-component systems and progression economies. Games are where you learn to make software that has to be right sixty times a second. Two of these are playable in your browser right now — press the link and judge them yourself.',
       },
       {
         t: 'cards',
-        items: [projectCard('harddrivin'), projectCard('galaxia'), projectCard('eclipse'), projectCard('casino'), projectCard('raven')],
+        items: [
+          projectCard('raven'),
+          projectCard('invadespace'),
+          projectCard('harddrivin'),
+          projectCard('galaxia'),
+          projectCard('eclipse'),
+          projectCard('casino'),
+        ],
       },
       { t: 'chips', group: skillGroups[2].group, items: [...skillGroups[2].items] },
     ],
@@ -184,7 +209,7 @@ export const sectors: SectorDef[] = [
     subtitle: 'Fifteen years of operating',
     form: 'spine',
     color: 0x5b9cff,
-    position: [150, 12, -800],
+    position: [190, 10, -2140],
     shards: 6,
     radius: 60,
     blocks: [
@@ -234,7 +259,7 @@ export const sectors: SectorDef[] = [
     subtitle: 'Work with me',
     form: 'beacon',
     color: 0x4de1c1,
-    position: [0, -12, -980],
+    position: [0, -20, -2620],
     shards: 5,
     radius: 64,
     blocks: [

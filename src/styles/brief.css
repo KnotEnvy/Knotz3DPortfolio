@@ -1,253 +1,917 @@
-/* Accessible written brief — the same content, no game required. */
+/* =========================================================================
+ * The written brief.
+ *
+ * This is the mobile default and the low-bandwidth, screen-reader, print and
+ * "just give me the facts" path — so it is designed as a real editorial page,
+ * not as a stylesheet apology. Dark, wide measure on desktop, single column on a
+ * phone, and a print block at the bottom that turns Cmd-P into a clean résumé.
+ *
+ * The brief lives in normal document flow as a direct child of <body>, NOT inside
+ * the fixed #ui overlay. Moving it back inside #ui breaks document scrolling and
+ * every in-page anchor.
+ * ========================================================================= */
 
 .brief {
-  position: relative;
-  /* Below #ui so the fixed toolbar stays clickable over the page. */
-  z-index: 1;
   display: none;
-  min-height: 100%;
-  background: linear-gradient(180deg, #06080f 0%, #05070d 100%);
+  position: relative;
+  z-index: 5;
+  background:
+    radial-gradient(80% 50% at 15% 0%, rgba(77, 225, 193, 0.09), transparent 60%),
+    radial-gradient(70% 45% at 85% 12%, rgba(139, 92, 246, 0.08), transparent 60%),
+    var(--void);
+  font-family: var(--font-body);
+  color: var(--text);
+  min-height: 100vh;
 }
 
-body.brief-mode .brief {
+.brief-mode .brief {
   display: block;
 }
 
-body.brief-mode #stage,
-body.brief-mode .hud,
-body.brief-mode .codex,
-body.brief-mode .terminal {
+/* In brief mode the canvas and the whole game HUD stand down completely. */
+.brief-mode #stage,
+.brief-mode #ui .hud,
+.brief-mode #ui .boot,
+.brief-mode #ui .codex,
+.brief-mode #ui .terminal,
+.brief-mode #ui .mcard,
+.brief-mode #ui .tc,
+.brief-mode #ui .toasts {
   display: none !important;
 }
 
-.brief__wrap {
-  max-width: 62rem;
-  margin: 0 auto;
-  padding: calc(5.5rem + var(--safe-t)) 1.5rem 6rem;
+.brief-mode #ui {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: auto;
 }
 
+.brief__wrap {
+  max-width: 74rem;
+  margin: 0 auto;
+  padding: 0 clamp(1.1rem, 4vw, 2.5rem) 4rem;
+}
+
+/* ------------------------------------------------------------- section nav */
+
+.bnav {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  border-bottom: 1px solid var(--hair);
+  background: rgba(5, 7, 14, 0.86);
+  backdrop-filter: blur(14px);
+}
+
+.bnav__wrap {
+  max-width: 74rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.25rem;
+  padding: 0.7rem clamp(1.1rem, 4vw, 2.5rem);
+}
+
+.bnav__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  color: var(--text);
+}
+
+.bnav__brand:hover {
+  text-decoration: none;
+}
+
+.bnav__brand b {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.bnav__brand span {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.28em;
+  color: var(--signal);
+}
+
+.bnav__links {
+  display: flex;
+  gap: 0.15rem;
+  margin-left: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bnav__links::-webkit-scrollbar {
+  display: none;
+}
+
+.bnav__link {
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--r-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  white-space: nowrap;
+  transition: color 0.16s var(--ease), background 0.16s var(--ease);
+}
+
+.bnav__link:hover {
+  color: var(--text);
+  background: rgba(140, 200, 255, 0.08);
+  text-decoration: none;
+}
+
+.bnav__actions {
+  display: flex;
+  gap: 0.45rem;
+  flex: none;
+}
+
+/* Anchors have to clear the sticky bar or every jump lands under it. */
+.brief__section,
+#brief-contact {
+  scroll-margin-top: 4.5rem;
+}
+
+/* -------------------------------------------------------------------- hero */
+
 .brief__hero {
-  padding-bottom: 2.6rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: start;
+  padding: clamp(2.5rem, 7vw, 5rem) 0 clamp(2rem, 5vw, 3.5rem);
   border-bottom: 1px solid var(--hair);
 }
 
-.brief__name {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: clamp(2.2rem, 7vw, 4rem);
-  letter-spacing: -0.035em;
-  line-height: 1;
-  margin: 0;
-  color: #fff;
-}
-
-.brief__role {
+.brief__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.1rem;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.24em;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--signal);
-  margin: 0.9rem 0 0;
+}
+
+.brief__kickerDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 10px var(--signal);
+}
+
+.brief__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 7vw, 4.2rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  background: linear-gradient(180deg, #fff 35%, #a6c8d9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .brief__tag {
-  font-family: var(--font-display);
-  font-size: clamp(1.05rem, 2.6vw, 1.35rem);
+  max-width: 32rem;
+  margin: 1.1rem 0 1.6rem;
+  font-size: clamp(1.05rem, 2.4vw, 1.32rem);
   line-height: 1.5;
   color: var(--text);
-  max-width: 44rem;
-  margin: 1.4rem 0 0;
 }
 
 .brief__contact {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 1.8rem;
 }
 
-.brief section {
-  padding: 2.8rem 0;
-  border-bottom: 1px solid var(--hair);
+.brief__contact--lg .btn {
+  padding: 0.85rem 1.4rem;
+  font-size: 0.92rem;
 }
 
-.brief h2 {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.34em;
-  text-transform: uppercase;
+.brief__heroNote {
+  margin: 1.3rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+.brief__inlineLink {
+  padding: 0;
+  font: inherit;
   color: var(--signal);
-  margin: 0 0 1.6rem;
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.brief h2::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--hair);
-}
-
-.brief h3 {
-  font-family: var(--font-display);
-  font-size: 1.24rem;
-  font-weight: 600;
-  margin: 0;
+.brief__inlineLink:hover {
   color: #fff;
 }
 
-.brief p {
-  font-size: 0.98rem;
-  line-height: 1.75;
-  color: var(--text-dim);
-  margin: 0 0 1rem;
-  max-width: 46rem;
+.brief__heroStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
 }
 
-.brief ul {
-  margin: 0 0 1rem;
-  padding-left: 1.1rem;
-  max-width: 46rem;
+.brief__stat {
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: rgba(12, 18, 32, 0.55);
 }
 
-.brief li {
-  font-size: 0.94rem;
+.brief__stat b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--signal);
+  line-height: 1;
+}
+
+.brief__statLabel {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.brief__stat em {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+/* ---------------------------------------------------------------- sections */
+
+.brief__section {
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0 0;
+}
+
+.brief__sectionHead {
+  margin-bottom: 1.8rem;
+}
+
+.brief__sectionHead h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.6vw, 2.15rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brief__kicker2 {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.brief__para {
+  max-width: 46rem;
+  margin: 0 0 1.05rem;
+  font-size: 1rem;
   line-height: 1.7;
   color: var(--text-dim);
-  margin-bottom: 0.45rem;
 }
 
-.brief li::marker {
+.brief__lead {
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.brief__meta {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
   color: var(--signal);
 }
 
+.brief__list {
+  /* Matches the paragraph measure. Full-width bullets on a wide desktop run to
+     a hundred-plus characters and stop being readable. */
+  max-width: 52rem;
+  margin: 0.9rem 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.brief__list li {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.brief__list li::marker {
+  color: var(--accent);
+}
+
+.brief__list--tight li {
+  font-size: 0.86rem;
+}
+
+/* Values */
+
+.brief__values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.8rem;
+  margin-top: 1.6rem;
+}
+
+.brief__value {
+  padding: 1.1rem 1.15rem;
+  border: 1px solid var(--hair);
+  border-left: 2px solid var(--signal);
+  border-radius: var(--r-md);
+  background: rgba(12, 18, 32, 0.45);
+}
+
+.brief__value h3 {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+}
+
+.brief__value p {
+  margin: 0;
+  font-size: 0.87rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+/* Ventures */
+
+.brief__venture {
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--hair);
+}
+
+.brief__venture:first-of-type {
+  border-top: 0;
+  padding-top: 0.5rem;
+}
+
+.brief__ventureHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.brief__ventureHead h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.6vw, 1.45rem);
+  letter-spacing: -0.01em;
+}
+
+.brief__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.brief__metric {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-sm);
+  background: rgba(12, 18, 32, 0.5);
+}
+
+.brief__metric b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.brief__metric span {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+/* -------------------------------------------------------------- work cards */
+
 .brief__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(23rem, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 0.9rem;
+}
+
+.brief__grid--two {
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
 }
 
 .brief__card {
   display: flex;
   flex-direction: column;
+  padding: 1.3rem 1.35rem 1.4rem;
   border: 1px solid var(--hair);
-  border-radius: var(--r-md);
-  padding: 1.25rem;
-  background: rgba(255, 255, 255, 0.018);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, rgba(14, 21, 36, 0.7), rgba(9, 13, 24, 0.55));
+  transition: transform 0.22s var(--ease), border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
 }
 
-/* Push the source/live buttons to the bottom so a row of cards lines up. */
-.brief__card-links {
+.brief__card:hover {
+  transform: translateY(-3px);
+  border-color: var(--hair-strong);
+  box-shadow: var(--shadow);
+}
+
+/* A project you can press and use right now earns a visible edge. */
+.brief__card.has-live {
+  border-color: color-mix(in srgb, var(--live) 32%, transparent);
+}
+
+.brief__card.has-live:hover {
+  border-color: color-mix(in srgb, var(--live) 60%, transparent);
+  box-shadow: 0 24px 60px -30px rgba(70, 224, 138, 0.5);
+}
+
+.brief__cardTop {
   display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: auto;
-  padding-top: 0.9rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.brief__cardTop h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  letter-spacing: -0.01em;
+}
+
+.brief__badge {
+  padding: 0.16rem 0.45rem;
+  border: 1px solid var(--live);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--live) 16%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--live);
+}
+
+.brief__kind {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.brief__cardHead {
+  margin: 0.6rem 0 0.7rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--signal);
+}
+
+.brief__card .brief__para {
+  font-size: 0.9rem;
+  margin-bottom: 0;
 }
 
 .brief__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
-  margin: 0.4rem 0 0;
+  margin-top: 1rem;
 }
 
 .brief__chip {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
   padding: 0.24rem 0.5rem;
   border: 1px solid var(--hair);
-  border-radius: 3px;
-  color: var(--text-faint);
-}
-
-.brief__card h3 {
-  font-size: 1.06rem;
-}
-
-.brief__card .sub {
-  font-size: 0.82rem;
-  color: var(--signal);
-  margin: 0.25rem 0 0.75rem;
-}
-
-.brief__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 1px;
-  background: var(--hair);
-  border: 1px solid var(--hair);
-  border-radius: var(--r-md);
-  overflow: hidden;
-  margin: 0 0 2rem;
-}
-
-.brief__stat {
-  background: #070a12;
-  padding: 1.15rem 1.1rem;
-}
-
-.brief__stat b {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--signal);
-  letter-spacing: -0.03em;
-}
-
-.brief__stat span {
-  display: block;
+  border-radius: 999px;
   font-family: var(--font-mono);
   font-size: 0.63rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-top: 0.35rem;
+  color: var(--text-faint);
 }
 
-.brief__role-entry {
-  display: grid;
-  grid-template-columns: 11rem 1fr;
-  gap: 1.5rem;
-  padding: 1.4rem 0;
-  border-top: 1px solid rgba(140, 200, 255, 0.08);
+.brief__cardLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: auto;
+  padding-top: 1.1rem;
 }
 
-.brief__role-entry:first-of-type {
-  border-top: none;
+.brief__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.48rem 0.8rem;
+  border: 1px solid var(--live);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--live) 15%, transparent);
+  font-family: var(--font-display);
+  font-size: 0.79rem;
+  font-weight: 600;
+  color: var(--live);
+  transition: all 0.16s var(--ease);
 }
 
-.brief__period {
+.brief__live:hover {
+  background: var(--live);
+  color: #04150c;
+  text-decoration: none;
+}
+
+.brief__live svg {
+  width: 0.85em;
+  height: 0.85em;
+}
+
+.brief__srcLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.48rem 0.7rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-sm);
   font-family: var(--font-mono);
   font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  padding-top: 0.25rem;
+  color: var(--text-dim);
+  transition: all 0.16s var(--ease);
 }
 
-.brief__company {
-  font-size: 0.88rem;
-  color: var(--signal);
-  margin: 0.2rem 0 0.6rem;
+.brief__srcLink:hover {
+  color: #fff;
+  border-color: var(--hair-strong);
+  text-decoration: none;
 }
 
-.brief__foot {
-  padding: 3rem 0 0;
-  text-align: center;
+.brief__srcLink svg {
+  width: 0.85em;
+  height: 0.85em;
+}
+
+.brief__card--service .brief__cardHead {
+  color: var(--amber);
+}
+
+/* --------------------------------------------------------------- timeline */
+
+.brief__timeline {
+  display: grid;
+  gap: 0;
+}
+
+.brief__role {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--hair);
+  position: relative;
+}
+
+.brief__role:first-child {
+  border-top: 0;
+  padding-top: 0.4rem;
+}
+
+.brief__rolePeriod {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-start;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  padding-top: 0.2rem;
+}
+
+.brief__now {
+  padding: 0.14rem 0.42rem;
+  border: 1px solid var(--signal);
+  border-radius: 999px;
+  font-size: 0.55rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: var(--signal);
+  background: rgba(77, 225, 193, 0.12);
+}
+
+.brief__roleBody h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+}
+
+.brief__role.now .brief__roleBody h3 {
+  color: #fff;
+}
+
+/* ----------------------------------------------------------------- skills */
+
+.brief__skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1.4rem;
+}
+
+.brief__skillGroup h3 {
+  margin: 0 0 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.brief__skillGroup .brief__chips {
+  margin-top: 0;
+}
+
+.brief__education {
+  margin-top: 2.4rem;
+  padding: 1.4rem 1.5rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-lg);
+  background: rgba(12, 18, 32, 0.45);
+}
+
+.brief__education h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.brief__education h4 {
+  margin: 1.4rem 0 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* -------------------------------------------------------------------- CTA */
+
+.brief__cta {
+  margin-top: clamp(3rem, 7vw, 5rem);
+  padding: clamp(2rem, 5vw, 3.4rem) clamp(1.4rem, 4vw, 3rem);
+  border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(90% 120% at 0% 0%, rgba(77, 225, 193, 0.14), transparent 62%),
+    rgba(10, 16, 28, 0.7);
+}
+
+.brief__ctaInner h2 {
+  margin: 0 0 0.9rem;
+  max-width: 34rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 2.3rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.brief__ctaInner p {
+  max-width: 40rem;
+  margin: 0 0 1.6rem;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+
+/* ------------------------------------------------------------------ footer */
+
+.brief__foot {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--hair);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
   color: var(--text-faint);
 }
 
-@media (max-width: 640px) {
-  .brief__role-entry {
+.brief__foot p {
+  margin: 0 0 0.4rem;
+}
+
+.brief__footNote {
+  color: rgba(107, 124, 147, 0.7);
+}
+
+/* A note prepended when the engine could not start at all. */
+.brief__notice {
+  margin: 0;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--amber);
+  border-radius: var(--r-md);
+  background: rgba(255, 180, 84, 0.1);
+  font-size: 0.88rem;
+  color: var(--amber);
+}
+
+/* ------------------------------------------------------------- responsive */
+
+@media (max-width: 860px) {
+  .brief__hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The nav actions are wider than a phone; give them their own row rather
+     than letting the Print button run off the edge of the viewport. */
+  .bnav__actions {
+    order: 3;
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+  .bnav__actions .btn {
+    flex: 1 1 auto;
+  }
+  .bnav__brand {
+    margin-right: auto;
+  }
+  .brief__role {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+  }
+  .brief__rolePeriod {
+    flex-direction: row;
+    align-items: center;
+  }
+  .bnav__links {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .brief__heroStats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .brief__contact .btn {
+    flex: 1 1 auto;
+  }
+  .brief__ventureHead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ------------------------------------------------------------------ print */
+
+/*
+ * Cmd-P produces a genuine résumé: white paper, black text, no chrome, no
+ * gradients, links resolved. This is why there is no PDF to keep in sync — the
+ * document already is one, and it can never go stale.
+ */
+@media print {
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  #stage,
+  #ui,
+  .bnav,
+  .skip,
+  .brief__heroNote,
+  .brief__inlineLink,
+  .noscript {
+    display: none !important;
+  }
+
+  .brief {
+    display: block !important;
+    background: #fff !important;
+    color: #111 !important;
+    min-height: 0;
+  }
+
+  .brief__wrap {
+    max-width: none;
+    padding: 0;
+  }
+
+  .brief__name {
+    -webkit-text-fill-color: #000;
+    color: #000 !important;
+    background: none !important;
+    font-size: 26pt;
+  }
+
+  .brief__hero {
     grid-template-columns: 1fr;
-    gap: 0.4rem;
+    gap: 0.6rem;
+    padding: 0 0 0.8rem;
+    border-color: #bbb;
+  }
+
+  .brief__section {
+    padding: 1.1rem 0 0;
+    break-inside: avoid;
+  }
+
+  .brief__sectionHead h2 {
+    font-size: 14pt;
+    border-bottom: 1px solid #000;
+    padding-bottom: 0.15rem;
+  }
+
+  .brief__card,
+  .brief__value,
+  .brief__metric,
+  .brief__stat,
+  .brief__education,
+  .brief__cta {
+    border: 1px solid #ccc !important;
+    background: none !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .brief__para,
+  .brief__list li,
+  .brief__ctaInner p {
+    color: #222 !important;
+    font-size: 9.5pt;
+    line-height: 1.45;
+  }
+
+  .brief__tag,
+  .brief__cardHead,
+  .brief__meta,
+  .brief__kicker,
+  .brief__skillGroup h3,
+  .brief__stat b {
+    color: #000 !important;
+  }
+
+  .brief__chip,
+  .brief__badge,
+  .brief__now {
+    border-color: #999 !important;
+    color: #333 !important;
+    background: none !important;
+  }
+
+  .btn,
+  .brief__live,
+  .brief__srcLink {
+    border: 0 !important;
+    background: none !important;
+    color: #000 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .brief__contact {
+    gap: 0.9rem;
+    font-size: 9.5pt;
+  }
+
+  /* Resolve every link so a printed page is still actionable. */
+  .brief__cardLinks a::after,
+  .brief__ventureHead a::after {
+    content: ' (' attr(href) ')';
+    font-family: var(--font-mono);
+    font-size: 7.5pt;
+    color: #555;
+  }
+
+  .brief__foot {
+    margin-top: 1rem;
+    color: #444;
+  }
+
+  svg {
+    display: none !important;
   }
 }

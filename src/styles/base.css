@@ -33,6 +33,16 @@ html.brief-mode body {
   overflow: visible;
 }
 
+/*
+ * The `hidden` attribute loses to any `display` rule on the same element, and
+ * several overlays here are `display: grid`. Without this, a dismissed boot
+ * screen stays laid out as an invisible full-viewport element and silently
+ * swallows every click aimed at the interface behind it.
+ */
+[hidden] {
+  display: none !important;
+}
+
 #stage {
   position: fixed;
   inset: 0;
@@ -162,4 +172,105 @@ button {
 .skip:focus {
   transform: translate(-50%, 0);
   text-decoration: none;
+}
+
+/* ------------------------------------------------------------------ buttons */
+
+/*
+ * One button system for the boot screen, the HUD panels and the brief. Sizes are
+ * modifiers rather than separate components, because a "Launch" on the title
+ * card and a "Continue" in a dossier are the same affordance at different
+ * volumes.
+ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.72rem 1.15rem;
+  border: 1px solid var(--hair-strong);
+  border-radius: var(--r-md);
+  background: rgba(16, 24, 40, 0.7);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 0.16s var(--ease),
+    border-color 0.16s var(--ease),
+    background 0.16s var(--ease),
+    box-shadow 0.16s var(--ease);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  background: rgba(24, 36, 58, 0.85);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04121a;
+  box-shadow: 0 10px 30px -12px var(--accent);
+}
+
+.btn--primary:hover {
+  background: var(--accent);
+  filter: brightness(1.1);
+  box-shadow: 0 16px 40px -12px var(--accent);
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--hair);
+  color: var(--text-dim);
+}
+
+.btn--ghost:hover {
+  color: var(--text);
+}
+
+.btn--sm {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.76rem;
+  border-radius: var(--r-sm);
+}
+
+.btn--lg {
+  padding: 0.95rem 1.7rem;
+  font-size: 1rem;
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.65em;
+  padding: 0.18em 0.42em;
+  border: 1px solid var(--hair-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgba(20, 30, 48, 0.9);
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
 }

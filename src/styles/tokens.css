@@ -2,15 +2,16 @@
   /* Surface */
   --void: #04050a;
   --ink: #080b14;
-  --panel: rgba(9, 13, 24, 0.82);
+  --panel: rgba(9, 13, 24, 0.86);
   --panel-solid: #0a0e1a;
+  --panel-raise: rgba(18, 25, 42, 0.9);
   --hair: rgba(140, 200, 255, 0.16);
   --hair-strong: rgba(140, 200, 255, 0.34);
 
   /* Text */
-  --text: #e8eef7;
+  --text: #e9eff8;
   --text-dim: #9fb0c9;
-  --text-faint: #64748b;
+  --text-faint: #6b7c93;
 
   /* Signal palette */
   --signal: #4de1c1;
@@ -18,6 +19,8 @@
   --amber: #ffb454;
   --violet: #8b5cf6;
   --azure: #5b9cff;
+  --danger: #ff4d5e;
+  --live: #46e08a;
 
   /* Per-sector accent, swapped at runtime */
   --accent: #4de1c1;
@@ -30,9 +33,16 @@
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 16px;
+  --r-xl: 22px;
 
   --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
+  --shadow-lg: 0 40px 100px -30px rgba(0, 0, 0, 0.95);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* HUD chrome sizing, so every corner cluster agrees. */
+  --hud-gap: clamp(0.75rem, 1.6vw, 1.5rem);
+  --hud-label: 0.6rem;
 
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);

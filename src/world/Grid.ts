@@ -38,11 +38,13 @@ const FRAG = /* glsl */ `
     float band = 0.5 + 0.5 * sin(vWorld.y * 0.045 + uTime * 1.5);
 
     vec3 col = mix(uColorA, uColorB, clamp(major + band * 0.25, 0.0, 1.0));
-    float a = (minor * 0.1 + major * 0.34) * fade;
+    // Deliberately faint. This plane covers most of the lower frame, so even a
+    // modest alpha here reads as a bright floor and competes with the corridor.
+    float a = (minor * 0.045 + major * 0.16) * fade;
     a *= 0.72 + 0.28 * band;
 
     if (a < 0.002) discard;
-    gl_FragColor = vec4(col * (0.8 + major * 1.6), a);
+    gl_FragColor = vec4(col * (0.5 + major * 0.8), a);
   }
 `;
 
@@ -58,10 +60,10 @@ export class Grid {
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uColorA: { value: new THREE.Color(0x1b3a5c) },
-        uColorB: { value: new THREE.Color(0x4de1c1) },
+        uColorA: { value: new THREE.Color(0x122741) },
+        uColorB: { value: new THREE.Color(0x2b8f7e) },
         uFocus: { value: new THREE.Vector3() },
-        uFade: { value: 760 },
+        uFade: { value: 1500 },
       },
       vertexShader: VERT,
       fragmentShader: FRAG,
@@ -70,13 +72,14 @@ export class Grid {
       side: THREE.DoubleSide,
     });
 
-    const geo = new THREE.PlaneGeometry(2400, 2400, 1, 1);
+    const geo = new THREE.PlaneGeometry(4200, 4200, 1, 1);
 
-    // Floor only. An overhead plane reads as a mirrored floor and fights the
-    // starfield for the top half of the frame.
+    // Floor only, and sunk well below the route so the corridor never clips
+    // through it. An overhead plane reads as a mirrored floor and fights the
+    // nebula for the top half of the frame.
     const floor = new THREE.Mesh(geo, this.material);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -95;
+    floor.position.y = -210;
     floor.frustumCulled = false;
 
     this.object.add(floor);

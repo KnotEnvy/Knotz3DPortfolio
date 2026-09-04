@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SectorDef } from '../data/sectors';
+import { hullMaterial } from '../shaders/hull';
 
 export interface Landmark {
   object: THREE.Object3D;
@@ -23,16 +24,11 @@ const glowMat = (color: number, opacity = 1) =>
     }),
   );
 
+// Landmarks share the scene's Fresnel hull look rather than standard PBR: no
+// lights to rig, and the rim picks out every edge of these silhouettes, which
+// is the whole reason they are recognisable from a kilometre out.
 const shellMat = (color: number) =>
-  track(
-    new THREE.MeshStandardMaterial({
-      color: 0x0a1220,
-      emissive: new THREE.Color(color).multiplyScalar(0.22),
-      roughness: 0.42,
-      metalness: 0.75,
-      flatShading: false,
-    }),
-  );
+  track(hullMaterial({ color, base: 0x0a1220, rim: 1.05, power: 2.3, glow: 0.05 }));
 
 const wireMat = (color: number, opacity: number) =>
   track(new THREE.LineBasicMaterial({ color, transparent: true, opacity, toneMapped: false }));

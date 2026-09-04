@@ -22,3 +22,20 @@ export function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/** Smooth 0→1→0 pulse over the unit interval. */
+export const pulse = (t: number): number => Math.sin(clamp(t, 0, 1) * Math.PI);
+
+/** Wrap an angle into -PI..PI. */
+export function wrapAngle(a: number): number {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
+
+/** Frame-rate independent approach toward a target at a fixed rate. */
+export function approach(a: number, b: number, rate: number, dt: number): number {
+  const step = rate * dt;
+  if (a < b) return Math.min(b, a + step);
+  return Math.max(b, a - step);
+}
