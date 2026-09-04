@@ -32,6 +32,7 @@ const FRAG = /* glsl */ `
   uniform vec3 uDeep;
   uniform float uTime;
   uniform float uDensity;
+  uniform vec3 uEye;
   varying vec3 vDir;
 
   float hash(vec3 p) {
@@ -67,12 +68,33 @@ const FRAG = /* glsl */ `
     vec3 d = normalize(vDir);
 
     // Very slow drift keeps the sky alive without ever drawing attention.
-    vec3 p = d * 2.2 + vec3(0.0, 0.0, uTime * 0.006);
+    /*
+     * Parallax.
+     *
+     * A skybox is pinned to the camera's rotation and nothing else, so for the
+     * whole length of a six-sector flight the backdrop is rigid: the ship moves
+     * thousands of units and the sky behind it does not shift by a pixel. That
+     * is why the corridor read as objects in a void — everything with depth cues
+     * was in the foreground, and the largest surface in frame was flat.
+     *
+     * True parallax is impossible on a sphere at the far plane, but the noise
+     * field it samples is volumetric, so drifting the sample point with the
+     * camera gives the same read for one uniform.
+     *
+     * The rates matter more than the magnitude. The deep cloud barely moves,
+     * which is correct — a nebula light-years out should not swim past the
+     * canopy — while the filaments drift an order of magnitude faster. It is
+     * that *difference* the eye reads as distance, not the absolute motion, so
+     * the sky stays still enough to feel vast and still shifts enough that you
+     * can tell you are travelling through it rather than dragging it along.
+     */
+    vec3 drift = uEye * 0.00045;
+    vec3 p = d * 2.2 + drift + vec3(0.0, 0.0, uTime * 0.006);
 
     float base = fbm(p);
     // Domain warp: feed the first field back in to get filaments and voids
     // instead of the cotton-wool look plain fbm gives you.
-    float wisp = fbm(p * 2.6 + vec3(base * 2.4));
+    float wisp = fbm(p * 2.6 + drift * 4.0 + vec3(base * 2.4));
 
     /*
      * Thresholds are the whole ballgame here, and this shader has now been
@@ -129,6 +151,7 @@ export class Nebula {
         uDeep: { value: new THREE.Color(0x04050c) },
         uTime: { value: 0 },
         uDensity: { value: density },
+        uEye: { value: new THREE.Vector3() },
       },
       vertexShader: VERT,
       fragmentShader: FRAG,
@@ -157,8 +180,9 @@ export class Nebula {
     this.material.uniforms.uDensity.value = v;
   }
 
-  update(elapsed: number, dt: number): void {
+  update(elapsed: number, dt: number, eye?: THREE.Vector3): void {
     this.material.uniforms.uTime.value = elapsed;
+    if (eye) (this.material.uniforms.uEye.value as THREE.Vector3).copy(eye);
     const k = Math.min(1, dt * 1.1);
     (this.material.uniforms.uColorA.value as THREE.Color).lerp(this.targetA, k);
     (this.material.uniforms.uColorB.value as THREE.Color).lerp(this.targetB, k);

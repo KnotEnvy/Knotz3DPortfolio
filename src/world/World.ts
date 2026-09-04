@@ -139,7 +139,7 @@ export class World {
     this.cloud.copy(accent).multiplyScalar(0.5);
     this.hotCloud.copy(accent).lerp(WHITE, 0.4).multiplyScalar(0.72);
     this.nebula.setPalette(this.cloud.getHex(), this.hotCloud.getHex(), deep.getHex());
-    this.nebula.update(elapsed, dt);
+    this.nebula.update(elapsed, dt, ship.object.position);
 
     // Fog glues distant structures into the sky rather than leaving them
     // floating on top of it — but only a trace of accent, and darker than the

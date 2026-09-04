@@ -177,23 +177,36 @@ export function buildEnemy(kind: EnemyKind, color: number, size: number): EnemyV
         void main() {
           float r = length(vUv - 0.5) * 2.0;
           if (r > 1.0) discard;
-          // A soft ring rather than a disc, so it frames the hull instead of
+
+          // A ring rather than a disc, so the marker frames the hull instead of
           // hiding it.
-          // A tighter, dimmer ring than the first pass. It has to find a
-          // hostile against a starfield, not compete with the node core it is
-          // often drawn in front of.
-          float ring = smoothstep(0.68, 0.9, r) * smoothstep(1.0, 0.92, r);
-          float core = pow(1.0 - r, 6.0) * 0.2;
-          float a = ring * 0.6 + core;
-          gl_FragColor = vec4(uColor * (ring * 1.5 + core * 1.8), a);
+          float ring = smoothstep(0.66, 0.78, r) * smoothstep(0.93, 0.85, r);
+
+          // A dark moat immediately outside the ring, and the reason this is
+          // drawn with normal blending rather than additively. Hostiles cluster
+          // around the node, which is the brightest object in the frame; an
+          // additive marker over a bloom source has nothing left to add and
+          // simply dissolves into the glow, so the one layer that has to stay
+          // readable — where the things shooting at you are — was the first to
+          // go. A band that takes light away separates against any background.
+          float moat = smoothstep(0.85, 0.93, r) * smoothstep(1.0, 0.95, r);
+
+          // Unpremultiplied: the moat contributes alpha but no colour, so it
+          // reads as a shadow, while the ring carries the threat colour lifted
+          // toward white so it still holds up against a bright core behind it.
+          float a = clamp(ring * 0.92 + moat * 0.55, 0.0, 1.0);
+          vec3 col = (uColor * 1.5 + vec3(0.22)) * ring;
+          gl_FragColor = vec4(col, a);
         }
       `,
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
     }),
   );
   const halo = new THREE.Mesh(keep(new THREE.PlaneGeometry(9, 9)), haloMat);
+  // Threat markers are an information layer: they draw after the world so a
+  // node or a prop can never end up sorted in front of the thing it is marking.
+  halo.renderOrder = 5;
   group.add(halo);
 
   group.scale.setScalar(size / 2.6);
