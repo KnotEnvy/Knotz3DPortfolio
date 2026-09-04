@@ -237,6 +237,11 @@
       "item": "GitHub Pages is not automatic. Run `npm run deploy` and verify the mirror, or knotenvy.github.io/Knotz3DPortfolio serves the previous version from an indexed URL."
     },
     {
+      "id": "delete-stale-branches",
+      "priority": "low",
+      "item": "Two remote branches are fully contained in main and carry zero unmerged commits: claude/gamified-3d-portfolio-r7vfyi (the previous agent branch) and claude/3d-portfolio-polish-8dxhjx (this one). update-node-version is also fully merged but predates this work. Deleting them is lossless. This session could not do it — the git proxy returns HTTP 403 on a delete refspec and there is no API tool for it — so they need removing from the GitHub branches page."
+    },
+    {
       "id": "graphics-polish",
       "priority": "medium",
       "item": "The three items the final graphics review named, none of them defects. Boost still reads closer to fine speckle than to directional speed-lines — the streak strength and particle count both likely need another pass, not just the resize they got. The combat desaturation may be overcorrected: it solves legibility convincingly but the scene goes near-monochrome during fights, which is most of the runtime in a dense sector; keeping 10-15% more chroma in the floor grid would help. And per-sector prop silhouettes are genuinely different primitives now but read as similar at distance because they share a material treatment and clustering density."
