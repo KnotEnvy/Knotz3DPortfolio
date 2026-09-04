@@ -52,6 +52,15 @@ export class Ship {
   barrier = Infinity;
   /** True while the mission is holding the ship short of a locked node. */
   held = false;
+  /**
+   * True only when boost is actually delivering speed.
+   *
+   * Holding the boost key while the mission caps the throttle at a node used to
+   * light the chip anyway, so the readout showed a falling speed — 74, 47, 20,
+   * finally 0 — beside a lit BOOST for the whole glide in. The chip is supposed
+   * to mean "you are going faster because you asked to", so it now says that.
+   */
+  boosting = false;
   /** Set while a dossier is open: the craft coasts to a stop and waits. */
   hold = false;
 
@@ -298,6 +307,7 @@ export class Ship {
     this.held = room < 3 && this.barrier !== Infinity;
 
     this.speed = damp(this.speed, target, this.hold ? 2.6 : 3.2, dt);
+    this.boosting = this.boostAmount > 0.35 && this.speed > CRUISE_SPEED + 1;
     if (this.speed < 0.05) this.speed = 0;
     this.distance = Math.min(this.barrier, this.distance + this.speed * dt);
 

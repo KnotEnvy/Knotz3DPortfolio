@@ -293,7 +293,7 @@ export class Hud {
     const label = ship.held ? 'HOLD' : String(speed);
     if (this.speedNum.textContent !== label) this.speedNum.textContent = label;
     this.speedUnit.hidden = ship.held;
-    this.boostPip.classList.toggle('on', ship.boostAmount > 0.35 && !ship.held);
+    this.boostPip.classList.toggle('on', ship.boosting);
     this.hullBar.style.width = `${Math.max(0, ship.integrity) * 100}%`;
     const low = ship.integrity < 0.35;
     this.hullWrap.classList.toggle('low', low);

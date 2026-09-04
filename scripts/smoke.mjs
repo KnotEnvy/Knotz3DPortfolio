@@ -213,11 +213,17 @@ await pp.close();
 /*
  * 5d. The flight readout must never contradict itself.
  *
- * At a locked node the mission takes the throttle away, so speed damps to zero
- * — but the boost chip stayed lit if the player was holding boost, and the
- * corridor still streaked past. "0 m/s" beside a lit BOOST reads as a broken
- * instrument to anyone who does not already know what a standoff is, and a
- * reviewer flagged it as the one thing on screen that looked like a bug.
+ * At a locked node the mission takes the throttle away, so the ship glides to a
+ * stop — but the boost chip stayed lit the whole way in, showing 74, then 47,
+ * then 20, then 0 m/s beside a lit BOOST. A reviewer named that combination as
+ * the one thing on screen that looked like an actual bug, which is fair: BOOST
+ * is supposed to mean "you are going faster because you asked to".
+ *
+ * This asserts the invariant across the whole approach rather than waiting for
+ * the ship to come to rest. The first version of this check waited for a
+ * fully stopped ship, never saw one inside its budget because the glide is
+ * asymptotic, and passed on the strength of having observed nothing at all —
+ * which is worse than no check, because it reports green.
  */
 const ph = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 await ph.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });
@@ -225,15 +231,16 @@ await ph.waitForTimeout(2200);
 await ph.getByRole('button', { name: /Launch|Resume/ }).click();
 await ph.waitForTimeout(1500);
 await ph.evaluate(() => window.SIGNAL.goto('origin'));
-// Hold boost throughout, which is the state that used to produce the mismatch.
 await ph.keyboard.down('Shift');
-let heldState = null;
-for (let i = 0; i < 90 && !heldState; i++) {
-  await ph.waitForTimeout(400);
-  heldState = await ph.evaluate(() => {
+
+const CRUISE = 68;
+let samples = 0;
+let sawSlowing = false;
+let contradiction = null;
+for (let i = 0; i < 46 && !contradiction; i++) {
+  await ph.waitForTimeout(550);
+  const s = await ph.evaluate(() => {
     const d = window.SIGNAL.debug();
-    if (d.phase !== 'node' && d.phase !== 'engage') return null;
-    if (d.speed > 0.5) return null;
     return {
       phase: d.phase,
       speed: d.speed,
@@ -241,12 +248,17 @@ for (let i = 0; i < 90 && !heldState; i++) {
       boostLit: document.querySelector('.flight__boost')?.classList.contains('on'),
     };
   });
+  if (s.phase === 'dossier' || s.phase === 'complete') break;
+  samples++;
+  // The mission is visibly throttling the ship back toward the node.
+  if (s.speed < CRUISE - 4) sawSlowing = true;
+  if (s.boostLit && s.speed < CRUISE) contradiction = s;
+  if (s.label === 'HOLD' && s.boostLit) contradiction = s;
 }
 await ph.keyboard.up('Shift');
-ok(
-  !heldState || (heldState.label === 'HOLD' && !heldState.boostLit),
-  `a stopped ship never shows a speed of zero beside a lit BOOST (${JSON.stringify(heldState)})`,
-);
+ok(samples > 6, `the flight readout was actually sampled during an approach (${samples} samples)`);
+ok(sawSlowing, 'the ship was observed being throttled back on the way into a node');
+ok(!contradiction, `BOOST is never lit while the ship is slower than cruise (${JSON.stringify(contradiction)})`);
 await ph.close();
 
 /* 5. Title card must survive a narrow viewport. */
