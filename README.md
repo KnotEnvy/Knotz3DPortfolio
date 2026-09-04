@@ -158,9 +158,9 @@ a sector's `cards` block. The brief picks it up automatically.
 
 ## Deploy
 
-> **Current state:** the v3 rebuild lives on `claude/3d-portfolio-polish-8dxhjx` and has not been
-> merged. Until it is, both URLs below serve the previous version. `handoff.json` tracks what is
-> outstanding.
+> **Current state:** v3 is merged to `main`. Vercel redeploys automatically; **GitHub Pages does
+> not** — run `npm run deploy` or the mirror below keeps serving the previous version from an
+> indexed URL. `handoff.json` tracks what is outstanding.
 ing
 
 `base` is `'./'`, so the build works from any path.
