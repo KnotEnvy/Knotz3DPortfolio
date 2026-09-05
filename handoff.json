@@ -93,7 +93,7 @@
   },
   "architecture": {
     "entryPoint": "src/main.ts",
-    "loop": "Fixed-step simulation at 60 Hz with an accumulator and a 5-step cap, decoupled from rendering. Frame rate never changes flight feel, weapon cadence or collision.",
+    "loop": "Fixed-step simulation at 60 Hz with an accumulator and a 5-step cap, decoupled from rendering. Frame rate never changes flight feel, weapon cadence or collision. The whole route is 3654 m; at cruise that is about 56 seconds of flying end to end, or 39 with the faster transit a replay gets.",
     "directories": {
       "src/core": "Engine (renderer, post chain, adaptive quality tiers), Input, Audio, Events bus, Save, Math helpers",
       "src/shaders": "Fresnel hull material with in-shader fog and procedural panel lines; the composite post pass",
@@ -264,11 +264,6 @@
       "item": "GameState (XP, ranks, achievement conditions) has no unit coverage. A mis-awarded achievement shipped and was caught by review rather than by a test."
     },
     {
-      "id": "replay-pacing",
-      "priority": "medium",
-      "item": "A replay now stops at all six sectors, which is right, but it flies the full run-in to each one at cruise speed even though the visitor has already read everything — roughly four and a half minutes to re-reach UPLINK. The route spine and the pause panel's sector index both shortcut it, so nobody is trapped, but a shorter run-in for an already-decrypted sector would make a second pass feel deliberate rather than long."
-    },
-    {
       "id": "sector-escalation",
       "priority": "low",
       "item": "Reviewers noted the six sectors run the same script six times — fly, fight, break the node, read the dossier — which is deliberate and good for conversion, but nothing escalates mechanically across sectors 2-6 the way the visuals imply it might."
@@ -290,7 +285,8 @@
     "Emissive intensity is a deliberate hierarchy, not per-object taste: threats brightest (Enemy rim 2.4), then the ship (1.7), then the objective landmark (1.5), then scenery (0.62). Raising any one of them in isolation flattens the frame and the eye loses its focal point — reviewers reported exactly that when they were all near 1.0.",
     "A dist/ mtime older than a commit does NOT mean the build is stale — the build runs before the commit. A reviewer inferred a stale-build process fault from exactly that and it was wrong. Verify what a bundle contains by grepping it or by measuring behaviour in the running app, never by comparing timestamps.",
     "A CSS class rename is invisible to every check in this project. TypeScript does not type class strings, the CSS does not know what the DOM emits, and a behavioural test still passes because the elements are all present and clickable in the accessibility tree — the finale shipped unstyled for exactly this reason, on the one panel a visitor only reaches by finishing. When renaming a block, grep the other side.",
-    "`sector:decrypted` now carries `broken`. It is false when the ship simply flew back to a node that was already open, and anything that pays out — XP, the node count, the 'Unshaken' award, the detonation — must stay behind that flag or a visitor farms the same chapter by re-reading it."
+    "`sector:decrypted` now carries `broken`. It is false when the ship simply flew back to a node that was already open, and anything that pays out — XP, the node count, the 'Unshaken' award, the detonation — must stay behind that flag or a visitor farms the same chapter by re-reading it.",
+    "Never time this product in a headless software renderer. Chromium on swiftshader runs the loop at a few frames a second and the fixed-step cap then advances sim time at a fraction of real time, which made a 56-second corridor look like four and a half minutes in a review of this very session. Time the forward model directly (it is self-contained arithmetic in Ship.step) or measure on real hardware."
   ],
   "conventions": {
     "branching": "Feature work on `claude/<topic>` branches, merged to `main` with --no-ff.",
@@ -342,6 +338,11 @@
       "id": "finale-unstyled",
       "resolved": "2026-09-05",
       "note": "complete.css element selectors renamed `.done__*` -> `.finale__*` to match the markup, plus a short-viewport rule. Verified at 1440x900, 1280x720 and 390x844: card styled, all four CTAs on screen. Two smoke checks now assert both."
+    },
+    {
+      "id": "replay-pacing",
+      "resolved": "2026-09-05",
+      "note": "The approach to an already-decrypted sector is now a transit rather than an encounter: no waves spawn and the ship cruises at TRANSIT_SPEED (110 m/s) instead of CRUISE_SPEED (68). Deliberately short of BOOST_SPEED (132), so boost still means something on the legs where it is most tempting to hold it. Measured against the real forward model, not the sandbox: a full six-sector replay is 38.8s of flying, down from 55.6s. The waves mattered more than the speed — they were putting 'Clear the scout drones — 7 hostiles remaining' on the objective line of a sector whose dossier opens on arrival regardless."
     }
   ],
   "testing": {

@@ -463,19 +463,45 @@ ok(landed === 'origin', `a visitor who cleared everything relaunches at ORIGIN (
 const beforeSave = await pr.evaluate(() => JSON.parse(localStorage.getItem('signal.save.v2')));
 await pr.evaluate(() => window.SIGNAL.goto('uplink'));
 let arrival = null;
+let peakSpeed = 0;
+let sawHostiles = false;
+let boostLitUnasked = false;
 for (let i = 0; i < 150 && !arrival; i++) {
   await pr.waitForTimeout(700);
-  const d = await pr.evaluate(() => ({
-    phase: window.SIGNAL.debug().phase,
-    sector: window.SIGNAL.debug().sector,
-    codex: !!document.querySelector('.codex.on'),
-  }));
+  const d = await pr.evaluate(() => {
+    const dbg = window.SIGNAL.debug();
+    return {
+      phase: dbg.phase,
+      sector: dbg.sector,
+      speed: dbg.speed,
+      hostiles: dbg.hostiles,
+      codex: !!document.querySelector('.codex.on'),
+      boost: document.querySelector('.flight__boost')?.classList.contains('on') ?? false,
+    };
+  });
   // Rolling past is the failure: the sector under the ship changes without the
   // run ever entering the dossier phase.
   if (d.sector !== 'uplink') break;
+  if (d.phase !== 'dossier') {
+    peakSpeed = Math.max(peakSpeed, d.speed);
+    if (d.hostiles > 0) sawHostiles = true;
+    if (d.boost) boostLitUnasked = true;
+  }
   if (d.phase === 'dossier' && d.codex) arrival = d;
 }
 ok(!!arrival, 'arriving at an already-open node stops the ship and hands the dossier back');
+
+/*
+ * 7a. The approach to an already-open sector is a transit, not an encounter.
+ *
+ * It used to be flown at the same cruise as a first visit, with the same waves,
+ * so the objective line read "Clear the scout drones — 7 hostiles remaining" on
+ * a sector whose dossier opens on arrival whatever the visitor does. Naming an
+ * objective that is not one is the actual defect; the speed is the comfort.
+ */
+ok(peakSpeed > 90, `a re-read approach cruises faster than a first visit (peak ${peakSpeed.toFixed(1)} m/s, base 68)`);
+ok(!sawHostiles, 'no wave is spawned to defend a node that is already open');
+ok(!boostLitUnasked, 'the faster transit does not light BOOST on its own');
 
 if (arrival) {
   await pr.getByRole('button', { name: 'Continue the run' }).click();

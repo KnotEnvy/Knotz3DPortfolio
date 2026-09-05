@@ -8,6 +8,14 @@ import { Route, TUBE_RADIUS, makePose, type Pose } from '../world/Route';
 export const CRUISE_SPEED = 68;
 export const BOOST_SPEED = 132;
 export const BRAKE_SPEED = 34;
+/**
+ * Cruise for a stretch of corridor the visitor has already read.
+ *
+ * Deliberately short of BOOST_SPEED. If a transit were as fast as boosting,
+ * the boost control would stop meaning anything on the legs where it is most
+ * tempting to hold it.
+ */
+export const TRANSIT_SPEED = 110;
 
 /** How fast the ship can slide across the tube. */
 const LATERAL_SPEED = 62;
@@ -37,6 +45,14 @@ export class Ship {
   private offsetVel = new THREE.Vector2();
 
   speed = CRUISE_SPEED;
+  /**
+   * Throttle the ship settles at with no input. The mission raises it on an
+   * approach to a sector that is already decrypted: flying ten seconds of
+   * corridor to re-reach a chapter you have read is the one stretch of this
+   * site with nothing to offer, and it should not be paced like the stretch
+   * that does.
+   */
+  cruise = CRUISE_SPEED;
   boostAmount = 0;
   bank = 0;
   nose = 0;
@@ -278,6 +294,7 @@ export class Ship {
     this.offset.set(0, 0);
     this.offsetVel.set(0, 0);
     this.speed = CRUISE_SPEED;
+    this.cruise = CRUISE_SPEED;
     this.boostAmount = 0;
     this.bank = 0;
     this.nose = 0;
@@ -309,7 +326,7 @@ export class Ship {
     let target: number;
     if (this.hold) target = 0;
     else if (input.brake) target = BRAKE_SPEED;
-    else target = CRUISE_SPEED + (BOOST_SPEED - CRUISE_SPEED) * this.boostAmount;
+    else target = this.cruise + Math.max(0, BOOST_SPEED - this.cruise) * this.boostAmount;
 
     // Room ahead caps the speed, so hitting a locked node is a glide to a stop.
     const room = this.barrier - this.distance;
@@ -322,7 +339,9 @@ export class Ship {
     this.held = room < 3 && this.barrier !== Infinity;
 
     this.speed = damp(this.speed, target, this.hold ? 2.6 : 3.2, dt);
-    this.boosting = this.boostAmount > 0.35 && this.speed > CRUISE_SPEED + 1;
+    // Measured against the cruise actually in force, not the constant: on a
+    // fast transit the chip must only light once boost is beating the transit.
+    this.boosting = this.boostAmount > 0.35 && this.speed > this.cruise + 1;
     if (this.speed < 0.05) this.speed = 0;
     this.distance = Math.min(this.barrier, this.distance + this.speed * dt);
 

@@ -7,7 +7,7 @@ import type { Sector } from '../world/Sector';
 import type { Combat } from '../game/Combat';
 import type { Pickups } from '../game/Pickups';
 import type { GameState } from '../game/GameState';
-import type { Ship } from '../player/Ship';
+import { CRUISE_SPEED, TRANSIT_SPEED, type Ship } from '../player/Ship';
 
 /** How far short of a node the ship is held while the node is alive. */
 const STANDOFF = 82;
@@ -177,13 +177,28 @@ export class Director {
   private beginSector(index: number, ship: Ship, from?: number): void {
     this.targetIndex = index;
     this.mission = missions[index];
-    this.waveIndex = 0;
     this.waveId = -1;
     this.nodeArmed = false;
     this.dossierOpen = false;
     this.parked = false;
     this.combat.setNode(null);
+
+    /*
+     * A sector that is already open has nothing left to defend and nothing left
+     * to show, so the approach to one is a transit rather than an encounter:
+     * the waves are marked spent and the ship cruises faster.
+     *
+     * The waves matter more than the speed here. They were still spawning on a
+     * re-read, which put "Clear the scout drones — 7 hostiles remaining" on the
+     * objective line of a sector whose dossier opens on arrival no matter what
+     * the visitor does. Naming an objective that is not one is worse than the
+     * ten seconds it cost.
+     */
+    const revisit = this.sectorObjs[index].decrypted;
+    this.waveIndex = revisit ? this.mission.waves.length : 0;
+
     if (from !== undefined) ship.reset(this.route, from);
+    ship.cruise = revisit ? TRANSIT_SPEED : CRUISE_SPEED;
     ship.hold = false;
     ship.barrier = this.barrierFor(index);
     this.enterTravel();
@@ -232,7 +247,9 @@ export class Director {
     this.phase = 'travel';
     const def = this.def;
     this.objectiveTitle = `Reach ${def.name}`;
-    this.objectiveDetail = this.sector.decrypted ? 'Already decrypted — flying back for another read' : this.mission.brief;
+    this.objectiveDetail = this.sector.decrypted
+      ? 'Already decrypted — closing fast for another read'
+      : this.mission.brief;
     this.state.visit(def.id);
     bus.emit('sector:enter', { id: def.id });
     bus.emit('mission:card', {

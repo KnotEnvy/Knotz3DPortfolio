@@ -159,6 +159,11 @@ scripts/smoke.mjs        Behavioural regression checks in headless Chromium
   chunk, so a gate sweeping past the camera never becomes a white bar.
 - **One content source.** `src/data/` feeds both the 3D dossiers and the written
   brief, so the two can never drift apart.
+- **Every sector stops.** Breaking a node opens its dossier; so does flying back
+  to one you already opened. Nothing rolls silently past a chapter. A re-read
+  approach spawns no waves and cruises at 110 m/s rather than 68, because that
+  stretch of corridor has nothing left to show — which takes a full replay from
+  56 seconds of flying to 39.
 
 ### Debugging
 
