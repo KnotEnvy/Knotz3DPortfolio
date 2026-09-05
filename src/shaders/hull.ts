@@ -177,10 +177,13 @@ const FRAG = /* glsl */ `
   }
 `;
 
-export type HullMaterial = THREE.ShaderMaterial & {
-  /** Push toward 1 on impact; decay it yourself each frame. */
-  hit: number;
-};
+/**
+ * A hull-shaded material. `uHit` blows the surface toward white on impact and
+ * `uTime` drives the travelling scan band; both are owned by whoever built the
+ * material — Combat for hostiles, Environment for props — because only they
+ * know when a thing was hit and which of them wants a band at all.
+ */
+export type HullMaterial = THREE.ShaderMaterial;
 
 export function hullMaterial(opts: HullOptions): HullMaterial {
   const mat = new THREE.ShaderMaterial({
@@ -203,7 +206,6 @@ export function hullMaterial(opts: HullOptions): HullMaterial {
     transparent: opts.transparent ?? false,
   }) as HullMaterial;
 
-  mat.hit = 0;
   registry.add(mat);
   return mat;
 }
@@ -220,22 +222,6 @@ export function setHullFog(color: THREE.Color, density: number): void {
   for (const m of registry) {
     (m.uniforms.uFogColor.value as THREE.Color).copy(color);
     m.uniforms.uFogDensity.value = density;
-  }
-}
-
-/** Drop materials that have been disposed, so the registry cannot grow forever. */
-export function forgetHullMaterial(mat: HullMaterial): void {
-  registry.delete(mat);
-}
-
-/** Decay every hull material's flash. Called once per frame with the set in use. */
-export function decayHits(mats: HullMaterial[], dt: number, elapsed: number): void {
-  for (const m of mats) {
-    if (m.hit > 0) {
-      m.hit = Math.max(0, m.hit - dt * 4.5);
-      m.uniforms.uHit.value = m.hit;
-    }
-    m.uniforms.uTime.value = elapsed;
   }
 }
 

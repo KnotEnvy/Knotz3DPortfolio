@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { InputState } from '../core/Input';
 import { clamp, damp } from '../core/Math';
-import { hullMaterial, glowMaterial, type HullMaterial } from '../shaders/hull';
+import { hullMaterial, glowMaterial } from '../shaders/hull';
 import { Trail } from '../fx/Trail';
 import { Route, TUBE_RADIUS, makePose, type Pose } from '../world/Route';
 
@@ -79,7 +79,6 @@ export class Ship {
   private plumeMat: THREE.MeshBasicMaterial;
   private intakeMat: THREE.MeshBasicMaterial;
   private canards: THREE.Object3D[] = [];
-  private hullMats: HullMaterial[] = [];
   private disposables: Array<THREE.BufferGeometry | THREE.Material> = [];
 
   /** Local-space muzzle positions, in hull units. */
@@ -110,7 +109,6 @@ export class Ship {
      */
     const shell = keep(hullMaterial({ color: accent, base: 0x070c16, rim: 1.3, power: 2.2, glow: 0.05, panel: 0.85 }));
     const shellDark = keep(hullMaterial({ color: accent, base: 0x060a12, rim: 0.7, power: 3.0, panel: 1.2 }));
-    this.hullMats.push(shell, shellDark);
 
     // Fuselage: a long faceted spine. Five sides rather than six so the top
     // face reads as a flat deck from behind — the only angle the player ever
@@ -409,10 +407,6 @@ export class Ship {
 
   updateTrail(camera: THREE.Camera): void {
     this.trail.update(this.tail(this.tmp), camera);
-  }
-
-  get hullMaterials(): HullMaterial[] {
-    return this.hullMats;
   }
 
   /** World velocity over the last step, for inheriting into particles. */
