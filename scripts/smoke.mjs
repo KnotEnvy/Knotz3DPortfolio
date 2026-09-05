@@ -424,6 +424,121 @@ const band = await m.evaluate(() => {
 });
 ok(band !== 'missing' && band.through, `a drag in the touch band reaches the canvas (${JSON.stringify(band)})`);
 ok(band !== 'missing' && band.btn === 'auto', 'the boost button still takes taps');
+// Every page here holds a live WebGL context and Chromium caps how many it will
+// keep. Leaving this one open made the next navigation hang rather than fail.
+await m.close();
+
+/*
+ * 7. A returning visitor must be stopped at every sector, not flown past them.
+ *
+ * With every node already open, arriving at one used to advance the run to the
+ * next sector on the spot — no stop, no dossier, no acknowledgement. A visitor
+ * coming back to re-read something, or anyone replaying the corridor, flew the
+ * entire route end to end and was shown not one word of the resume it exists to
+ * deliver. The whole product failed silently and nothing here noticed, because
+ * the ship kept moving and the HUD kept naming an objective the entire time.
+ */
+const seedCleared = () => {
+  const counts = { origin: 5, ventures: 6, forge: 7, arcade: 6, track: 6, uplink: 5 };
+  const shards = {};
+  for (const [k, n] of Object.entries(counts)) shards[k] = Array.from({ length: n }, (_, i) => `${k}-${i}`);
+  localStorage.setItem('signal.save.v2', JSON.stringify({
+    v: 2, xp: 2000, shards, achievements: ['node-1'], visited: Object.keys(counts),
+    brief: false, seenIntro: true, muted: true, kills: 50, nodes: 6,
+  }));
+};
+
+const pr = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await pr.addInitScript(seedCleared);
+await pr.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });
+await pr.waitForTimeout(2200);
+await pr.getByRole('button', { name: /Launch|Resume/ }).click();
+await pr.waitForTimeout(900);
+
+// A cleared save used to resume at the LAST sector, so "launch" meant a few
+// seconds of flight and then an empty finished run.
+const landed = await pr.evaluate(() => window.SIGNAL.debug().sector);
+ok(landed === 'origin', `a visitor who cleared everything relaunches at ORIGIN (got ${landed})`);
+
+const beforeSave = await pr.evaluate(() => JSON.parse(localStorage.getItem('signal.save.v2')));
+await pr.evaluate(() => window.SIGNAL.goto('uplink'));
+let arrival = null;
+for (let i = 0; i < 150 && !arrival; i++) {
+  await pr.waitForTimeout(700);
+  const d = await pr.evaluate(() => ({
+    phase: window.SIGNAL.debug().phase,
+    sector: window.SIGNAL.debug().sector,
+    codex: !!document.querySelector('.codex.on'),
+  }));
+  // Rolling past is the failure: the sector under the ship changes without the
+  // run ever entering the dossier phase.
+  if (d.sector !== 'uplink') break;
+  if (d.phase === 'dossier' && d.codex) arrival = d;
+}
+ok(!!arrival, 'arriving at an already-open node stops the ship and hands the dossier back');
+
+if (arrival) {
+  await pr.getByRole('button', { name: 'Continue the run' }).click();
+  await pr.waitForTimeout(2600);
+  const fin = await pr.evaluate(() => ({
+    phase: window.SIGNAL.debug().phase,
+    open: !!document.querySelector('.finale.on'),
+    save: JSON.parse(localStorage.getItem('signal.save.v2')),
+  }));
+  ok(fin.open && fin.phase === 'complete', `the last dossier's Continue reaches the finale (${fin.phase})`);
+  // Re-reading a chapter must not pay out again.
+  ok(
+    fin.save.xp === beforeSave.xp && fin.save.nodes === beforeSave.nodes,
+    `re-reading an open dossier awards nothing (xp ${beforeSave.xp}->${fin.save.xp}, nodes ${beforeSave.nodes}->${fin.save.nodes})`,
+  );
+
+  /*
+   * 7b. The finale's calls to action must be on screen.
+   *
+   * This panel shipped completely unstyled: the stylesheet was renamed from
+   * `.done` to `.finale` at the block and nowhere else, so every element rule
+   * still said `.done__*` while the markup said `.finale__*`. Nothing matched —
+   * no width cap, no padding, no background, no scroll — and the card rendered
+   * 1400x1624px in a 900px viewport with all four CTAs below the fold. It is
+   * the one screen a visitor only reaches by finishing, which is exactly why no
+   * screenshot review ever caught it.
+   */
+  const cta = await pr.evaluate(() => {
+    const card = document.querySelector('.finale__card');
+    const cs = getComputedStyle(card);
+    return {
+      styled: cs.backgroundImage !== 'none' && cs.maxHeight !== 'none',
+      offscreen: [...document.querySelectorAll('.finale__actions > *')]
+        .filter((b) => {
+          const r = b.getBoundingClientRect();
+          return r.bottom > window.innerHeight + 1 || r.top < -1 || r.right > window.innerWidth + 1;
+        })
+        .map((b) => b.textContent.trim()),
+    };
+  });
+  ok(cta.styled, 'the finale card picks up its own stylesheet');
+  ok(cta.offscreen.length === 0, `every finale CTA is on screen (off: ${cta.offscreen.join(', ') || 'none'})`);
+
+  /*
+   * 7c. There must be a way to fly it again that is not "wipe everything".
+   *
+   * The run had an ending and no beginning to go back to: the only control that
+   * restarted the corridor was the two-step button that first destroys every
+   * shard, rank and award.
+   */
+  await pr.getByRole('button', { name: 'Fly it again' }).click();
+  await pr.waitForTimeout(2200);
+  const again = await pr.evaluate(() => ({
+    ...window.SIGNAL.debug(),
+    finale: !!document.querySelector('.finale.on'),
+  }));
+  ok(
+    again.sector === 'origin' && again.phase === 'travel' && !again.finale,
+    `"Fly it again" restarts the run at ORIGIN (sector ${again.sector}, phase ${again.phase})`,
+  );
+  ok(again.collected === 35, `restarting keeps every shard already earned (${again.collected}/35)`);
+}
+await pr.close();
 
 console.log('\n' + (fails.length ? 'FAILURES:\n' + fails.join('\n') : 'ALL CHECKS PASSED'));
 await browser.close();
