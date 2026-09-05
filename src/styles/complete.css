@@ -6,6 +6,13 @@
  * status (`.jump__state.done`), and because this file is imported after
  * hud.css it won: cleared sectors became fixed-position, zero-opacity boxes
  * and the progress spine visibly lost a pip every time the player succeeded.
+ *
+ * That rename then stopped at the block. Every element below stayed `.done__*`
+ * while the markup had already moved to `.finale__*`, so the card itself
+ * matched nothing at all: no width cap, no padding, no background, no scroll —
+ * a 1400x1624px unstyled column in a 900px viewport with all four calls to
+ * action below the fold. It looked fine in code and it was invisible in every
+ * screenshot, because nobody screenshots the panel you only reach by finishing.
  */
 .finale {
   position: fixed;
@@ -27,7 +34,7 @@
   transition: opacity 0.5s var(--ease), visibility 0s;
 }
 
-.done__card {
+.finale__card {
   width: min(46rem, 100%);
   max-height: 100%;
   overflow-y: auto;
@@ -40,11 +47,11 @@
   transition: transform 0.5s var(--ease);
 }
 
-.finale.on .done__card {
+.finale.on .finale__card {
   transform: none;
 }
 
-.done__tag {
+.finale__tag {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -55,12 +62,12 @@
   color: var(--signal);
 }
 
-.done__tag svg {
+.finale__tag svg {
   width: 1rem;
   height: 1rem;
 }
 
-.done__title {
+.finale__title {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(1.7rem, 5vw, 2.5rem);
@@ -70,14 +77,14 @@
   color: #fff;
 }
 
-.done__copy {
+.finale__copy {
   font-size: 0.95rem;
   line-height: 1.7;
   color: var(--text-dim);
   margin: 0 0 0.9rem;
 }
 
-.done__stats {
+.finale__stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(6.2rem, 1fr));
   gap: 1px;
@@ -88,13 +95,13 @@
   overflow: hidden;
 }
 
-.done__stat {
+.finale__stat {
   background: #080c16;
   padding: 0.85rem 0.8rem;
   text-align: center;
 }
 
-.done__stat b {
+.finale__stat b {
   display: block;
   font-family: var(--font-display);
   font-size: 1.25rem;
@@ -103,7 +110,7 @@
   letter-spacing: -0.02em;
 }
 
-.done__stat span {
+.finale__stat span {
   display: block;
   font-family: var(--font-mono);
   font-size: 0.58rem;
@@ -113,8 +120,24 @@
   margin-top: 0.3rem;
 }
 
-.done__actions {
+.finale__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
+}
+
+/* The finale is the one panel a visitor reaches by finishing, so its calls to
+   action must be on screen on a laptop, not below a fold. */
+@media (max-height: 780px) {
+  .finale__card {
+    padding-block: 1.4rem;
+  }
+
+  .finale__title {
+    margin: 0.6rem 0 0.7rem;
+  }
+
+  .finale__stats {
+    margin: 1rem 0;
+  }
 }
