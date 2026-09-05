@@ -9,7 +9,6 @@ export interface SaveData {
   brief: boolean;
   seenIntro: boolean;
   muted: boolean;
-  bestTimeMs: number | null;
   /** Lifetime hostiles destroyed. */
   kills: number;
   /** Lifetime encryption nodes broken. */
@@ -27,7 +26,6 @@ const blank = (): SaveData => ({
   brief: false,
   seenIntro: false,
   muted: false,
-  bestTimeMs: null,
   kills: 0,
   nodes: 0,
 });

@@ -23,12 +23,6 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-export const frag = (children: Array<Node | string>): DocumentFragment => {
-  const f = document.createDocumentFragment();
-  for (const c of children) f.append(typeof c === 'string' ? document.createTextNode(c) : c);
-  return f;
-};
-
 export const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 
 export function rgba(n: number, a: number): string {

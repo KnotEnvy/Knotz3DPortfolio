@@ -122,7 +122,6 @@ class App {
         this.audio.hurt();
         this.rig.addShake(0.55, 2.6);
         this.engine.punch(0.22);
-        bus.emit('player:hit', { integrity: this.ship.integrity });
       },
       onShoot: () => this.audio.shoot(),
       onEnemyHit: (_at, killed) => {
@@ -152,6 +151,7 @@ class App {
       warp: (id) => this.warpTo(id),
       brief: (on) => this.setBrief(on),
       reset: () => this.resetProgress(),
+      restart: () => this.restartRun(),
       dossier: (id) => {
         // Close the terminal first: it sits above the dossier and keeps focus,
         // so the panel opened invisibly behind it.
@@ -176,11 +176,15 @@ class App {
       jump: (id) => this.warpTo(id),
       brief: () => this.setBrief(true),
       reset: () => this.resetProgress(),
+      restart: () => this.restartRun(),
     });
 
-    this.complete = new Complete(this.ui, this.state, () => {
-      this.running = !this.briefMode;
-      this.lastFrame = performance.now();
+    this.complete = new Complete(this.ui, this.state, {
+      close: () => {
+        this.running = !this.briefMode;
+        this.lastFrame = performance.now();
+      },
+      restart: () => this.restartRun(),
     });
 
     if (this.input.coarse) this.touch = new TouchControls(this.ui, this.input);
@@ -253,18 +257,24 @@ class App {
       this.rig.addShake(0.3);
     });
 
-    bus.on('sector:decrypted', ({ id }) => {
-      this.audio.nodeBreak();
-      this.rig.addShake(1.1, 1.2);
-      this.engine.punch(0.55);
-      this.state.recordNode(this.hullAtNode >= 0.999);
+    bus.on('sector:decrypted', ({ id, broken }) => {
+      if (broken) {
+        this.audio.nodeBreak();
+        this.rig.addShake(1.1, 1.2);
+        this.engine.punch(0.55);
+        this.state.recordNode(this.hullAtNode >= 0.999);
+      } else {
+        // Flown back to a node that was already open. No detonation to land, no
+        // XP to award a second time — just the chapter, handed straight back.
+        this.audio.enterSector();
+      }
       // Let the detonation land before the panel takes the screen. Shortened
       // from 1.5s: the objective already reads "Dossier recovered — read it,
       // then continue", and pointing at a panel that does not exist yet is
       // worse than a slightly hurried transition.
       window.setTimeout(() => {
         if (!this.briefMode) this.codex.open(id, true);
-      }, 850);
+      }, broken ? 850 : 220);
     });
 
     bus.on('codex:open', () => {
@@ -281,6 +291,13 @@ class App {
       window.setTimeout(() => {
         if (!this.briefMode) this.complete.show();
       }, 1200);
+    });
+
+    // "Keep flying" off the finale used to end at the far end of the corridor
+    // with the ship parked in the dark and no way on. Running out of road now
+    // puts the card — and the ask on it — back on screen.
+    bus.on('run:parked', () => {
+      if (!this.briefMode) this.complete.show();
     });
 
     document.addEventListener('keydown', (e) => this.onKey(e));
@@ -442,20 +459,30 @@ class App {
       this.hud.setVisible(true);
       this.touch?.setVisible(true);
     }
-    bus.emit('mode:brief', { on });
     return on;
   }
 
-  private warpTo(id: SectorId): void {
-    const index = sectors.findIndex((s) => s.id === id);
-    if (index < 0) return;
+  /**
+   * Put the run somewhere new and hand the controls back.
+   *
+   * Jumping to a sector, replaying the corridor and wiping progress differ only
+   * in the one line that moves the director; everything around it — dismissing
+   * whatever panel is on screen, clearing the effects left over from where the
+   * ship used to be, unpausing — is identical, and was previously copied out by
+   * hand for each of them with a different field forgotten every time.
+   */
+  private resumeAt(place: () => void): void {
     if (this.briefMode) this.setBrief(false);
     if (!this.state.data.seenIntro) this.state.markIntroSeen();
 
     this.boot.hide();
+    this.complete.hide();
     this.overlay.close();
     this.codex.close();
-    this.director.jumpTo(index, this.ship);
+    this.terminal.toggle(false);
+
+    place();
+
     this.rig.snap(this.ship);
     this.rig.addShake(0.5);
     this.audio.boost();
@@ -466,18 +493,27 @@ class App {
     this.pickups.clear();
     this.hud.setAssist(null);
     this.hud.setSkipOffer(false);
+    this.hud.setVisible(true);
     this.running = true;
     this.paused = false;
-    this.hud.setVisible(true);
+    this.lastFrame = performance.now();
   }
 
+  private warpTo(id: SectorId): void {
+    const index = sectors.findIndex((s) => s.id === id);
+    if (index < 0) return;
+    this.resumeAt(() => this.director.jumpTo(index, this.ship));
+  }
+
+  /** Fly the whole corridor again, keeping every shard, rank and award. */
+  private restartRun(): void {
+    this.resumeAt(() => this.director.replay(this.ship));
+  }
+
+  /** Wipe the save and fly it from scratch, nodes locked again. */
   private resetProgress(): void {
     this.state.reset();
-    this.director.reset(this.ship);
-    this.particles.clear();
-    this.impacts.clear();
-    this.rig.snap(this.ship);
-    this.codex.close();
+    this.resumeAt(() => this.director.reset(this.ship));
   }
 
   /* ------------------------------------------------------------------ */
@@ -593,6 +629,11 @@ class App {
   /** Jump to a sector from the console. */
   goto(id: SectorId): void {
     this.warpTo(id);
+  }
+
+  /** Fly the corridor again from ORIGIN, keeping progress. */
+  restart(): void {
+    this.restartRun();
   }
 
   /**

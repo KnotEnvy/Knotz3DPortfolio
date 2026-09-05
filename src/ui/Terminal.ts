@@ -1,5 +1,4 @@
 import { el, escapeHtml } from './dom';
-import { bus } from '../core/Events';
 import { sectors, type SectorId } from '../data/sectors';
 import { profile } from '../data/profile';
 import { projects } from '../data/content';
@@ -27,7 +26,13 @@ export class Terminal {
   constructor(
     parent: HTMLElement,
     private state: GameState,
-    private hooks: { warp(id: SectorId): void; brief(on: boolean): void; reset(): void; dossier(id: SectorId): void },
+    private hooks: {
+      warp(id: SectorId): void;
+      brief(on: boolean): void;
+      reset(): void;
+      restart(): void;
+      dossier(id: SectorId): void;
+    },
   ) {
     this.log = el('div', { class: 'terminal__log scroll' });
     this.input = el('input', {
@@ -211,11 +216,21 @@ export class Terminal {
     });
 
     add({
+      name: 'restart',
+      help: 'fly the corridor again, keeping your progress',
+      run: () => {
+        this.print('re-entering the corridor at ORIGIN…', 'ok');
+        this.hooks.restart();
+      },
+    });
+
+    add({
       name: 'reset',
       help: 'wipe progress and start over',
       run: () => {
-        this.hooks.reset();
+        // Printed before the hook, which closes this terminal on its way out.
         this.print('progress wiped. fly safe.', 'ok');
+        this.hooks.reset();
       },
     });
 
@@ -315,7 +330,6 @@ export class Terminal {
     } else {
       this.input.blur();
     }
-    bus.emit('terminal:toggle', { on: next });
   }
 }
 
