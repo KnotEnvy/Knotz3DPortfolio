@@ -1,7 +1,7 @@
 {
   "$comment": "Handoff record for the next team or agent picking up this repository. Update the `updated` field and the relevant sections whenever the project changes materially.",
   "schemaVersion": 1,
-  "updated": "2026-09-04",
+  "updated": "2026-09-05",
   "updatedBy": "Claude Opus 5 (agent-assisted session), reviewed by Jay W. Snyder",
   "project": {
     "name": "SIGNAL",
@@ -22,7 +22,7 @@
       "Founder / AI Engineer, Hacktivate Nation"
     ]
   },
-  "status": "v3 merged to main. Reviewed by an independent judge panel over eight rounds scoring graphics, UX and overall quality out of 10 against a live build. Final round: graphics 8.9, UX 9.1, overall 9.1 — average 9.03 against a 9.0 bar, accepted by the owner. Vercel redeploys automatically on push to main; GitHub Pages does NOT and needs `npm run deploy` or the mirror keeps serving v2 from an indexed URL.",
+  "status": "v3 merged to main, plus a follow-up session that fixed the replay loop. The run now stops at every sector — including sectors already decrypted, which it used to fly straight past without showing a word of the resume — and there is a real \"fly it again\" that keeps every shard, rank and award. That session also found the completion card had been shipping entirely unstyled: the stylesheet was renamed from `.done` to `.finale` at the block only, so every element rule still said `.done__*` while the markup said `.finale__*`, and the card rendered 1400x1624px in a 900px viewport with all four calls to action below the fold. Vercel redeploys automatically on push to main; GitHub Pages does NOT and needs `npm run deploy` or the mirror keeps serving an older build from an indexed URL.",
   "deployment": {
     "intendedHost": "Vercel",
     "productionUrl": "https://knotz3d-portfolio.vercel.app/",
@@ -89,7 +89,7 @@
     "smoke": "npm run smoke",
     "smokeServe": "npm run smoke:serve",
     "deployGithubPages": "npm run deploy",
-    "note": "`npm run build` runs `tsc --noEmit` first, so a type error fails the build. `npm run smoke` drives the built site in headless Chromium; serve dist first with `npm run smoke:serve`. Set SKIP_PASSIVE=1 to skip the slow passive-visitor check, and CHROMIUM_PATH if Playwright cannot find a browser."
+    "note": "`npm run build` runs `tsc --noEmit` first, so a type error fails the build. `npm run smoke` drives the built site in headless Chromium; serve dist first with `npm run smoke:serve`. Set SKIP_PASSIVE=1 to skip the slow passive-visitor check, and CHROMIUM_PATH if Playwright cannot find a browser. Playwright and http-server are now real devDependencies — `npm run smoke` used to fail on a fresh clone because neither was declared."
   },
   "architecture": {
     "entryPoint": "src/main.ts",
@@ -108,7 +108,7 @@
     },
     "notableTechniques": [
       "The route is an arc-length-parameterised spline. Forward motion is automatic and monotonic; steering only moves the ship inside a tube around the centreline, so a visitor cannot get lost or fly out of the content.",
-      "The mission director runs the same five beats six times — travel, waves, node, dossier, continue — so there is exactly one objective at any moment and the HUD always names it.",
+      "The mission director runs the same five beats six times — travel, waves, node, dossier, continue — so there is exactly one objective at any moment and the HUD always names it. Every entry into that script (launch, resume, Continue, a route-spine jump, a replay, a progress wipe) goes through one `beginSector` so they cannot drift apart, and every sector ends in a dossier: a node that is already open is handed back rather than flown past.",
       "Stall assist: if a fight stops progressing the interface escalates, first an instruction, then automatic fire, then an explicit offer to open the dossier anyway. Nobody is locked out of a resume for being bad at a game.",
       "The player cannot lose. Hits cost hull integrity, which regenerates.",
       "Fresnel hull shader with FogExp2 implemented in-shader (custom ShaderMaterials do not get three fog for free) and triplanar procedural panel lines.",
@@ -117,7 +117,7 @@
       "Composite post pass driven by gameplay: boost streaks, damage vignette, explosion punch.",
       "Procedural WebAudio throughout, including filtered noise bursts for explosions. Zero audio files ship."
     ],
-    "debugging": "`window.SIGNAL.debug()` returns distance along the route, offset, speed, barrier, hull, mission phase, objective, hostiles, particle count, quality tier and per-node state. `window.SIGNAL.goto(<sectorId>)` jumps to a sector; `window.SIGNAL.forceDossier()` opens the current dossier without fighting for it. `?tier=0|1|2` pins the quality tier."
+    "debugging": "`window.SIGNAL.debug()` returns distance along the route, offset, speed, barrier, hull, mission phase, objective, hostiles, particle count, quality tier and per-node state. `window.SIGNAL.goto(<sectorId>)` jumps to a sector; `window.SIGNAL.restart()` flies the corridor again from ORIGIN keeping progress; `window.SIGNAL.forceDossier()` opens the current dossier without fighting for it. `?tier=0|1|2` pins the quality tier."
   },
   "content": {
     "singleSourceOfTruth": true,
@@ -228,7 +228,9 @@
     "The #ui overlay won on CSS specificity and swallowed all pointer events, which silently killed drag-to-fly on touch devices.",
     "The written brief lived inside a fixed full-viewport overlay, so the page could not scroll and in-page anchors went nowhere.",
     "Dossiers closed themselves a few seconds after arrival as the ship drifted out of the sector radius.",
-    "The ORIGIN torus knot rendered as an invisible dark silhouette: a smooth knot has no hard edges, so EdgesGeometry produced nothing to draw."
+    "The ORIGIN torus knot rendered as an invisible dark silhouette: a smooth knot has no hard edges, so EdgesGeometry produced nothing to draw.",
+    "Arriving at a sector whose node was already open advanced the run on the spot, so a returning visitor — or anyone replaying — flew the whole corridor end to end and was shown none of the resume.",
+    "The completion card matched none of its own stylesheet: `.finale__*` in the markup against `.done__*` in the CSS. No width cap, no padding, no background, no scroll, and every call to action off screen."
   ],
   "openItems": [
     {
@@ -262,9 +264,19 @@
       "item": "GameState (XP, ranks, achievement conditions) has no unit coverage. A mis-awarded achievement shipped and was caught by review rather than by a test."
     },
     {
+      "id": "replay-pacing",
+      "priority": "medium",
+      "item": "A replay now stops at all six sectors, which is right, but it flies the full run-in to each one at cruise speed even though the visitor has already read everything — roughly four and a half minutes to re-reach UPLINK. The route spine and the pause panel's sector index both shortcut it, so nobody is trapped, but a shorter run-in for an already-decrypted sector would make a second pass feel deliberate rather than long."
+    },
+    {
       "id": "sector-escalation",
       "priority": "low",
       "item": "Reviewers noted the six sectors run the same script six times — fly, fight, break the node, read the dossier — which is deliberate and good for conversion, but nothing escalates mechanically across sectors 2-6 the way the visuals imply it might."
+    },
+    {
+      "id": "unstyled-class-audit",
+      "priority": "low",
+      "item": "The finale bug was a class-name rename that stopped halfway between the stylesheet and the markup, and nothing in the toolchain can see that: TypeScript does not check class strings and CSS does not know what the DOM emits. A build-time diff of the class names the TS emits against the ones the CSS defines would have caught it in a second. Worth adding if another component is ever renamed."
     }
   ],
   "knownRisks": [
@@ -276,7 +288,9 @@
     "Chromium interpolates a CSS transition or keyframe between a bare hex and a color-mix() through oklab(), and out-of-gamut midpoints can clip to a completely wrong hue — a violet objective card rendered a pure green ring for a whole animation. Both ends of any animated colour must be written with the same colour function.",
     "Adding a uniform to a ShaderMaterial's uniforms object does not declare it in the GLSL. Miss the declaration and the shader fails to compile, the material draws nothing, and the game plays and reports identically — it looks like a tuning problem, not a broken shader. Check the console before tuning any effect that looks weak.",
     "Emissive intensity is a deliberate hierarchy, not per-object taste: threats brightest (Enemy rim 2.4), then the ship (1.7), then the objective landmark (1.5), then scenery (0.62). Raising any one of them in isolation flattens the frame and the eye loses its focal point — reviewers reported exactly that when they were all near 1.0.",
-    "A dist/ mtime older than a commit does NOT mean the build is stale — the build runs before the commit. A reviewer inferred a stale-build process fault from exactly that and it was wrong. Verify what a bundle contains by grepping it or by measuring behaviour in the running app, never by comparing timestamps."
+    "A dist/ mtime older than a commit does NOT mean the build is stale — the build runs before the commit. A reviewer inferred a stale-build process fault from exactly that and it was wrong. Verify what a bundle contains by grepping it or by measuring behaviour in the running app, never by comparing timestamps.",
+    "A CSS class rename is invisible to every check in this project. TypeScript does not type class strings, the CSS does not know what the DOM emits, and a behavioural test still passes because the elements are all present and clickable in the accessibility tree — the finale shipped unstyled for exactly this reason, on the one panel a visitor only reaches by finishing. When renaming a block, grep the other side.",
+    "`sector:decrypted` now carries `broken`. It is false when the ship simply flew back to a node that was already open, and anything that pays out — XP, the node count, the 'Unshaken' award, the detonation — must stay behind that flag or a visitor farms the same chapter by re-reading it."
   ],
   "conventions": {
     "branching": "Feature work on `claude/<topic>` branches, merged to `main` with --no-ff.",
@@ -313,6 +327,21 @@
       "id": "dates",
       "resolved": "2026-09-03",
       "note": "Dazzle Divas 2018 confirmed. SkyRun set to 'Aug 2026 — Present' in both the ventures card and the career timeline."
+    },
+    {
+      "id": "sector-stops",
+      "resolved": "2026-09-05",
+      "note": "Every sector now stops the ship and hands its dossier back, decrypted or not. A visitor who has cleared everything relaunches at ORIGIN rather than being dropped at UPLINK with nothing left to do."
+    },
+    {
+      "id": "restart-flight",
+      "resolved": "2026-09-05",
+      "note": "\"Fly it again\" on the finale, \"Restart the flight\" in the pause panel, `restart` in the terminal and `window.SIGNAL.restart()` in the console. All keep every shard, rank and award; \"Reset progress\" remains the separate two-step wipe. Reaching the end of the corridor after \"Keep flying\" now puts the finale back up instead of parking the ship in the dark."
+    },
+    {
+      "id": "finale-unstyled",
+      "resolved": "2026-09-05",
+      "note": "complete.css element selectors renamed `.done__*` -> `.finale__*` to match the markup, plus a short-viewport rule. Verified at 1440x900, 1280x720 and 390x844: card styled, all four CTAs on screen. Two smoke checks now assert both."
     }
   ],
   "testing": {
@@ -332,7 +361,14 @@
       "The canvas is reachable through the HUD and through the mobile touch band, so drag-to-fly survives",
       "The boost button still takes taps",
       "The browser console is clean through a real fight and a dossier — a shader that fails to compile draws nothing and passes every behavioural check, which is how a broken threat-marker shader shipped",
-      "The flight readout never shows BOOST lit while the ship is slower than cruise, asserted across a whole approach rather than at one sampled instant"
-    ]
+      "The flight readout never shows BOOST lit while the ship is slower than cruise, asserted across a whole approach rather than at one sampled instant",
+      "A visitor who has cleared every sector relaunches at ORIGIN, not at the last sector",
+      "Arriving at an already-open node stops the ship and hands the dossier back, instead of flying past it",
+      "Re-reading an open dossier awards no XP and no node credit",
+      "The last dossier's Continue reaches the finale",
+      "The finale card picks up its own stylesheet and every one of its calls to action is on screen",
+      "\"Fly it again\" restarts the run at ORIGIN with every shard still earned"
+    ],
+    "note": "The passive-visitor check is timing-marginal on a software renderer. In a swiftshader sandbox it took 268s of its 300s budget on the pre-change build and 172s after, and it does fail there on a slow run — it is measuring how long an autofiring ship takes to kill a node at 2-5 fps, not the product. On real hardware it finishes in seconds. If it fails, re-run before believing it, and compare against the previous build rather than weakening the check."
   }
 }

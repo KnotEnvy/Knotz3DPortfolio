@@ -67,8 +67,10 @@ type-checker, a linter and a screenshot all failed to notice: a passive visitor
 being permanently stranded at the first node, alt-tab freezing the run forever,
 a CSS collision that deleted a pip from the progress spine each time the player
 succeeded, the title card overflowing a narrow viewport, focus escaping a modal
-that claimed `aria-modal`, and the touch hint rendering on top of the shard
-counter.
+that claimed `aria-modal`, the touch hint rendering on top of the shard counter,
+a returning visitor being flown past every sector without being shown one word
+of the resume, and the completion card rendering entirely unstyled with all four
+of its calls to action below the fold.
 
 ```bash
 npm run build
@@ -84,15 +86,21 @@ Node 20.19+ is required. The build has no runtime dependency beyond `three`.
 | --- | --- |
 | `W` `A` `S` `D` / arrows | Fly |
 | Mouse drag / touch drag | Fly (steer toward the pointer) |
-| `Shift` / `Space` / hold pointer | Boost |
+| Click / `Space` / `J` | Fire |
+| `Shift` | Boost |
+| `C` / `Ctrl` | Brake |
+| `H` or `?` | Pause panel — controls, sector index, record |
 | `` ` `` or `~` | Toggle the terminal |
 | `B` | Toggle the written brief |
 | `M` | Mute |
 | `Esc` | Close the dossier, terminal or completion card |
 
+On a phone, drag anywhere to fly and the guns fire on their own.
+
 The terminal is a real command parser — `help`, `whoami`, `sectors`,
-`warp <sector>`, `projects`, `stack`, `contact`, `hire`, `status`, `brief`,
-`reset`, `clear`. Unknown commands get a Levenshtein-based suggestion.
+`warp <sector>`, `dossier <sector>`, `projects`, `stack`, `contact`, `hire`,
+`status`, `brief`, `restart`, `reset`, `clear`. Unknown commands get a
+Levenshtein-based suggestion.
 
 ## Architecture
 
@@ -106,20 +114,33 @@ src/
 │   ├── Events.ts        Typed pub/sub bus
 │   ├── Save.ts          Defensive localStorage progress
 │   └── Math.ts          clamp / lerp / damp / smoothstep / seeded PRNG
-├── shaders/grain.ts     Film grain, vignette, chromatic aberration pass
+├── shaders/
+│   ├── hull.ts          Fresnel hull material: in-shader fog, panel lines
+│   └── composite.ts     Grain, vignette, chromatic aberration, boost streaks
+├── fx/                  Pooled GPU particles, impact flashes, ribbon trails
 ├── world/
-│   ├── World.ts         Scene graph, proximity activation, shard pickup
-│   ├── Sector.ts        One chapter: landmark, label, shards, magnetism
+│   ├── Route.ts         The flight spline, arc-length parameterised
+│   ├── World.ts         Scene graph, proximity activation, per-frame fog
+│   ├── Sector.ts        One chapter: node, shield, landmark, label, shards
 │   ├── Landmark.ts      Six hand-built silhouettes, one per sector
-│   ├── Corridor.ts      Spline of gates and debris that fills the route
-│   ├── Grid.ts          Infinite neon floor (derivative-based anti-aliasing)
+│   ├── Corridor.ts      Gates and debris strung along the route
+│   ├── Causeway.ts      Ribbon floor swept along the spline
+│   ├── Environment.ts   Per-sector props; dims while hostiles are up
+│   ├── Nebula.ts        Volumetric backdrop
 │   ├── Starfield.ts     Deterministic GPU point cloud
+│   ├── Enemy.ts         Hostile archetypes and their threat markers
 │   └── Label.ts         Canvas-texture sprites
-├── player/              Arcade flight model and spring chase camera
-├── game/GameState.ts    XP, ranks, shards, achievements
+├── player/              Rail flight model and spring chase camera
+├── game/
+│   ├── Mission.ts       The director: one objective at a time, six times
+│   ├── Combat.ts        Weapons, hostiles, collision, stand-down
+│   ├── Pickups.ts       Shard magnetism and collection
+│   └── GameState.ts     XP, ranks, shards, achievements
 ├── ui/                  HUD, dossier, terminal, toasts, brief, completion
 ├── data/                All content — profile, ventures, projects, sectors
 └── styles/              Design tokens and component CSS
+
+scripts/smoke.mjs        Behavioural regression checks in headless Chromium
 ```
 
 ### Things worth pointing at
@@ -141,8 +162,17 @@ src/
 
 ### Debugging
 
-`window.SIGNAL.debug()` returns ship position, speed, progress and per-sector
-shard distances from the browser console.
+From the browser console:
+
+- `window.SIGNAL.debug()` — distance along the route, offset, speed, barrier,
+  hull, mission phase, objective, hostiles, particle count, quality tier and
+  per-node state.
+- `window.SIGNAL.goto('<sectorId>')` — jump straight to a sector.
+- `window.SIGNAL.restart()` — fly the corridor again from ORIGIN, keeping
+  every shard, rank and award.
+- `window.SIGNAL.forceDossier()` — open the current dossier without fighting
+  for it.
+- `?tier=0|1|2` pins the quality tier.
 
 ## Editing the content
 
