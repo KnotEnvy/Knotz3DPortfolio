@@ -2,6 +2,11 @@ import { el, icons } from './dom';
 import { profile } from '../data/profile';
 import type { GameState } from '../game/GameState';
 
+export interface CompleteHandlers {
+  close(): void;
+  restart(): void;
+}
+
 /**
  * The payoff. Every shard recovered means the visitor has passed through all
  * six dossiers — which is the moment to ask for the conversation.
@@ -11,7 +16,7 @@ export class Complete {
   private stats: HTMLElement;
   private closeBtn: HTMLButtonElement;
 
-  constructor(parent: HTMLElement, private state: GameState, private onClose: () => void) {
+  constructor(parent: HTMLElement, private state: GameState, private handlers: CompleteHandlers) {
     this.stats = el('div', { class: 'finale__stats' });
 
     this.closeBtn = el('button', {
@@ -46,6 +51,15 @@ export class Complete {
               text: 'Start a conversation',
             }),
             el('a', { class: 'btn', href: 'tel:+13863015775', text: profile.phone }),
+            // The run has an ending; without this it had no beginning to go
+            // back to, and the only way to fly the corridor again was the
+            // button that wipes every shard and award first.
+            el('button', {
+              class: 'btn',
+              type: 'button',
+              text: 'Fly it again',
+              onclick: () => this.handlers.restart(),
+            }),
             this.closeBtn,
           ]),
         ]),
@@ -75,9 +89,10 @@ export class Complete {
   }
 
   hide(): void {
+    if (!this.isOpen) return;
     this.root.classList.remove('on');
     this.root.setAttribute('aria-hidden', 'true');
-    this.onClose();
+    this.handlers.close();
   }
 
   get isOpen(): boolean {

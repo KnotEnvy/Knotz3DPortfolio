@@ -110,7 +110,6 @@ export const missions: MissionDef[] = [
   },
 ];
 
-export const missionBySector = new Map<SectorId, MissionDef>(missions.map((m) => [m.sector, m]));
 
 export interface EnemyProfile {
   hp: number;

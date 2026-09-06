@@ -8,6 +8,7 @@ export interface OverlayHandlers {
   jump(id: SectorId): void;
   brief(): void;
   reset(): void;
+  restart(): void;
 }
 
 type Tab = 'controls' | 'sectors' | 'record';
@@ -92,6 +93,18 @@ export class Overlay {
             onclick: () => {
               this.close();
               this.handlers.brief();
+            },
+          }),
+          // Distinct from "Reset progress" below, and kept well clear of it:
+          // this one keeps every shard, rank and award, and simply flies the
+          // corridor from the top again.
+          el('button', {
+            class: 'btn',
+            type: 'button',
+            text: 'Restart the flight',
+            onclick: () => {
+              this.close();
+              this.handlers.restart();
             },
           }),
           // Two-step. This wipes every shard, rank and achievement, and it used

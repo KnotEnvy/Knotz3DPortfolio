@@ -3,6 +3,7 @@ import { Sector } from './Sector';
 import { Starfield } from './Starfield';
 import { Causeway } from './Causeway';
 import { Corridor, nearestPair } from './Corridor';
+import { disposeLandmarkCache } from './Landmark';
 import { Environment } from './Environment';
 import { Nebula } from './Nebula';
 import { Route } from './Route';
@@ -188,5 +189,8 @@ export class World {
     this.corridor.dispose();
     this.environment.dispose();
     this.nebula.dispose();
+    // Landmark geometry and materials are cached module-wide, so disposing the
+    // sectors above does not touch them.
+    disposeLandmarkCache();
   }
 }

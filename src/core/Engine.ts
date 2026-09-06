@@ -6,7 +6,6 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
-import { bus } from './Events';
 import { clamp, damp } from './Math';
 import { CompositeShader } from '../shaders/composite';
 
@@ -141,7 +140,6 @@ export class Engine {
     if (tier.aa === 'smaa') void this.loadSmaa();
     this.applyAa();
     this.resize();
-    bus.emit('quality:change', { tier: tier.id });
   }
 
   /** Fetch and install SMAA once; subsequent calls are no-ops. */

@@ -1,31 +1,24 @@
 import type { SectorId } from '../data/sectors';
 
 export interface AppEvents {
-  'boot:done': void;
-  'game:start': void;
   'sector:enter': { id: SectorId };
-  'sector:leave': { id: SectorId };
-  'sector:decrypted': { id: SectorId };
+  /** `broken` is false when the ship simply flew back to an already-open node. */
+  'sector:decrypted': { id: SectorId; broken: boolean };
   'shard:collect': { sector: SectorId; total: number; xp: number };
   'mission:card': { code: string; name: string; subtitle: string; brief: string; index: number; total: number; color: number };
   'wave:spawn': { index: number; count: number };
   'node:armed': { id: SectorId; name: string };
-  'enemy:killed': { xp: number };
-  'player:hit': { integrity: number };
-  'dossier:continue': void;
   /** The run has stalled; the interface should start helping. */
   'assist:hint': { text: string };
   'assist:autofire': void;
   'assist:skip': { on: boolean };
   'xp:change': { xp: number; level: number; rank: string; pct: number };
   'achievement': { id: string; name: string; note: string };
-  'mode:brief': { on: boolean };
-  'terminal:toggle': { on?: boolean };
   'codex:open': { id: SectorId };
   'codex:close': void;
-  'warp': { id: SectorId };
-  'quality:change': { tier: number };
   'complete': void;
+  /** A finished run has coasted to the end of the corridor. */
+  'run:parked': void;
 }
 
 type Handler<T> = (payload: T) => void;

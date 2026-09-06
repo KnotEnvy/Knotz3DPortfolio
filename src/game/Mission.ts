@@ -7,7 +7,7 @@ import type { Sector } from '../world/Sector';
 import type { Combat } from '../game/Combat';
 import type { Pickups } from '../game/Pickups';
 import type { GameState } from '../game/GameState';
-import type { Ship } from '../player/Ship';
+import { CRUISE_SPEED, TRANSIT_SPEED, type Ship } from '../player/Ship';
 
 /** How far short of a node the ship is held while the node is alive. */
 const STANDOFF = 82;
@@ -45,6 +45,8 @@ export class Director {
   private dropped = new Map<SectorId, number>();
   private nodeArmed = false;
   private dossierOpen = false;
+  /** True once the finished run has coasted to the end of the corridor. */
+  private parked = false;
   private tmp = new THREE.Vector3();
 
   /**
@@ -99,11 +101,6 @@ export class Director {
 
   /* --------------------------------------------------------------- setup */
 
-  /**
-   * Begin, or resume. A returning visitor who already cleared the first three
-   * sectors is dropped in at the fourth with the first three standing open —
-   * nobody should have to re-earn content they have already read.
-   */
   private resetStall(): void {
     this.stall = 0;
     this.assistSkip = false;
@@ -156,51 +153,92 @@ export class Director {
   skipToDossier(ship: Ship): void {
     if (this.phase === 'dossier' || this.phase === 'complete') return;
     const s = this.sector;
-    if (!s.decrypted) s.forceDecrypt();
+    // Measured before forceDecrypt, or a visitor who stalls on a sector they
+    // already cleared is paid for breaking a node that was open when they
+    // arrived — once per lap, for as many laps as they care to fly.
+    const broken = !s.decrypted;
+    if (broken) s.forceDecrypt();
     this.resetStall();
-    this.openDossier(ship);
+    this.openDossier(ship, broken);
+  }
+
+  /**
+   * Put the run at the top of a sector.
+   *
+   * Every way into the script ends here — first launch, resume, the dossier's
+   * Continue, a route-spine jump, a replay, a progress wipe — because every one
+   * of them has to leave the same state behind: one live sector, no stale wave,
+   * a barrier short of its node, and a title card on screen. There used to be
+   * five hand-rolled copies of this and they had already drifted apart by a
+   * field each.
+   *
+   * `from` is where to put the ship; omit it to carry on from where it is.
+   */
+  private beginSector(index: number, ship: Ship, from?: number): void {
+    this.targetIndex = index;
+    this.mission = missions[index];
+    this.waveId = -1;
+    this.nodeArmed = false;
+    this.dossierOpen = false;
+    this.parked = false;
+    this.combat.setNode(null);
+
+    /*
+     * A sector that is already open has nothing left to defend and nothing left
+     * to show, so the approach to one is a transit rather than an encounter:
+     * the waves are marked spent and the ship cruises faster.
+     *
+     * The waves matter more than the speed here. They were still spawning on a
+     * re-read, which put "Clear the scout drones — 7 hostiles remaining" on the
+     * objective line of a sector whose dossier opens on arrival no matter what
+     * the visitor does. Naming an objective that is not one is worse than the
+     * ten seconds it cost.
+     */
+    const revisit = this.sectorObjs[index].decrypted;
+    this.waveIndex = revisit ? this.mission.waves.length : 0;
+
+    if (from !== undefined) ship.reset(this.route, from);
+    ship.cruise = revisit ? TRANSIT_SPEED : CRUISE_SPEED;
+    ship.hold = false;
+    ship.barrier = this.barrierFor(index);
+    this.enterTravel();
   }
 
   start(ship: Ship): void {
-    let first = sectors.findIndex((s) => this.state.shardsIn(s.id).length < s.shards);
-    if (first < 0) first = sectors.length - 1;
-
     for (let i = 0; i < this.sectorObjs.length; i++) {
       const def = sectors[i];
       if (this.state.shardsIn(def.id).length >= def.shards) this.sectorObjs[i].markDecrypted();
       else this.sectorObjs[i].disarm();
     }
 
-    this.targetIndex = first;
-    this.mission = missions[first];
-    this.waveIndex = 0;
-    this.waveId = -1;
-    this.nodeArmed = false;
-    this.dossierOpen = false;
-
-    // Resume just behind whichever node is next, not at the very start.
-    const from = first === 0 ? 0 : Math.max(0, this.sectorObjs[first - 1].distance + 40);
-    ship.reset(this.route, from);
-    ship.barrier = this.barrierFor(first);
-    this.combat.setNode(null);
-    this.enterTravel();
+    // Resume just behind whichever node is still owed content, not at the very
+    // start — nobody should have to re-earn a chapter they have already read.
+    // A visitor who has cleared everything is the exception: there is no next
+    // node to resume to, so they fly the whole corridor again from ORIGIN and
+    // every sector hands its dossier straight back.
+    let first = sectors.findIndex((s) => this.state.shardsIn(s.id).length < s.shards);
+    if (first < 0) first = 0;
+    this.beginSector(first, ship, first === 0 ? 0 : Math.max(0, this.sectorObjs[first - 1].distance + 40));
   }
 
+  /**
+   * Fly the corridor again from ORIGIN, keeping every shard, rank and award
+   * already earned. Nodes that are already open stay open: a second run is for
+   * re-reading, not for re-earning content the visitor has paid for once.
+   */
+  replay(ship: Ship): void {
+    this.combat.clear();
+    this.pickups.clear();
+    this.beginSector(0, ship, 0);
+  }
+
+  /** Wipe the world back to a first-ever visit. Pairs with GameState.reset. */
   reset(ship: Ship): void {
     for (const s of this.sectorObjs) s.disarm();
     for (const s of sectors) this.dropped.set(s.id, 0);
     this.combat.clear();
     this.pickups.clear();
-    this.targetIndex = 0;
-    this.mission = missions[0];
-    this.waveIndex = 0;
-    this.waveId = -1;
-    this.nodeArmed = false;
-    this.dossierOpen = false;
-    ship.reset(this.route, 0);
-    ship.barrier = this.barrierFor(0);
-    this.combat.setNode(null);
-    this.enterTravel();
+    this.beginSector(0, ship, 0);
   }
 
   /* --------------------------------------------------------------- phases */
@@ -209,7 +247,9 @@ export class Director {
     this.phase = 'travel';
     const def = this.def;
     this.objectiveTitle = `Reach ${def.name}`;
-    this.objectiveDetail = this.mission.brief;
+    this.objectiveDetail = this.sector.decrypted
+      ? 'Already decrypted — closing fast for another read'
+      : this.mission.brief;
     this.state.visit(def.id);
     bus.emit('sector:enter', { id: def.id });
     bus.emit('mission:card', {
@@ -250,7 +290,16 @@ export class Director {
     bus.emit('node:armed', { id: this.def.id, name: this.mission.nodeName });
   }
 
-  private openDossier(ship: Ship): void {
+  /**
+   * Stop the ship and hand over the chapter.
+   *
+   * `broken` separates the two ways of arriving here. Breaking a node earns the
+   * detonation, the XP and the award; flying back to a node that is already open
+   * earns none of those and must not fire them again — but it still stops, and
+   * it still hands the dossier back. Rolling silently past a sector the visitor
+   * came here to read is the one thing this site cannot do.
+   */
+  private openDossier(ship: Ship, broken: boolean): void {
     const def = this.def;
     this.dossierOpen = true;
     this.phase = 'dossier';
@@ -276,9 +325,11 @@ export class Director {
     }
     this.dropped.set(def.id, already + remaining);
 
-    this.objectiveTitle = 'Dossier recovered';
-    this.objectiveDetail = 'Read it, then continue when you are ready';
-    bus.emit('sector:decrypted', { id: def.id });
+    this.objectiveTitle = broken ? 'Dossier recovered' : `${def.name} archive`;
+    this.objectiveDetail = broken
+      ? 'Read it, then continue when you are ready'
+      : 'Already decrypted — re-read it, then continue';
+    bus.emit('sector:decrypted', { id: def.id, broken });
   }
 
   /** Called by the Continue button in the dossier. */
@@ -288,21 +339,20 @@ export class Director {
     ship.hold = false;
 
     if (this.targetIndex >= sectors.length - 1) {
-      this.phase = 'complete';
-      this.objectiveTitle = 'Transmission complete';
-      this.objectiveDetail = 'Every sector decrypted';
-      ship.barrier = this.route.length;
-      bus.emit('complete', undefined);
+      this.finish(ship);
       return;
     }
+    this.beginSector(this.targetIndex + 1, ship);
+  }
 
-    this.targetIndex++;
-    this.mission = missions[this.targetIndex];
-    this.waveIndex = 0;
-    this.waveId = -1;
-    this.nodeArmed = false;
-    ship.barrier = this.barrierFor(this.targetIndex);
-    this.enterTravel();
+  /** The last dossier is closed. Open the road and put the ask on screen. */
+  private finish(ship: Ship): void {
+    this.phase = 'complete';
+    this.parked = false;
+    this.objectiveTitle = 'Transmission complete';
+    this.objectiveDetail = 'Every sector decrypted — fly it again or get in touch';
+    ship.barrier = this.route.length;
+    bus.emit('complete', undefined);
   }
 
   /**
@@ -312,22 +362,10 @@ export class Director {
    */
   jumpTo(index: number, ship: Ship): void {
     const i = Math.max(0, Math.min(sectors.length - 1, index));
-    this.targetIndex = i;
-    this.mission = missions[i];
-    this.waveIndex = 0;
-    this.waveId = -1;
-    this.nodeArmed = false;
-    this.dossierOpen = false;
     this.combat.clear();
-    this.combat.setNode(null);
-
     // Drop in at the start of this sector's run-in so the approach, the title
     // card and the fight all still happen.
-    const start = Math.max(0, this.sectorObjs[i].distance - this.mission.lead - 60);
-    ship.reset(this.route, start);
-    ship.hold = false;
-    ship.barrier = this.barrierFor(i);
-    this.enterTravel();
+    this.beginSector(i, ship, Math.max(0, this.sectorObjs[i].distance - missions[i].lead - 60));
   }
 
   /** A kill happened. Drop a shard if the sector still owes more than the node will. */
@@ -350,6 +388,14 @@ export class Director {
     if (this.phase === 'complete') {
       // Free flight to the end of the route once everything is open.
       ship.barrier = this.route.length;
+      // ...and the end of the route is a dead end. A visitor who chose "keep
+      // flying" off the finale used to coast into the dark and stop there,
+      // parked in front of nothing with the ask three clicks away behind a
+      // pause menu. Reaching the end puts the payoff card back up instead.
+      if (!this.parked && ship.distance >= this.route.length - 2) {
+        this.parked = true;
+        bus.emit('run:parked', undefined);
+      }
       return;
     }
 
@@ -390,7 +436,7 @@ export class Director {
 
     if (this.phase === 'node') {
       if (node.decrypted) {
-        this.openDossier(ship);
+        this.openDossier(ship, true);
       } else {
         this.objectiveTitle = node.shielded ? `Collapse the ${this.mission.nodeName} shield` : 'Destroy the exposed core';
         // The node panel sits directly under this line and already carries the
@@ -407,27 +453,14 @@ export class Director {
       }
     }
 
-    // A returning visitor flying past an already-open node just keeps going.
+    // Arriving at a node that is already open. This used to roll straight on to
+    // the next sector without stopping, which meant a returning visitor — or
+    // anyone replaying the run — flew the entire corridor end to end and was
+    // shown not one word of the résumé it exists to deliver. Every sector now
+    // ends the same way: the ship stops, and the dossier is handed back.
     if (node.decrypted && !this.dossierOpen && ship.distance >= barrier - 2.5) {
-      this.skipOpenSector(ship);
+      this.openDossier(ship, false);
     }
-  }
-
-  private skipOpenSector(ship: Ship): void {
-    if (this.targetIndex >= sectors.length - 1) {
-      this.phase = 'complete';
-      this.objectiveTitle = 'Transmission complete';
-      this.objectiveDetail = 'Every sector decrypted';
-      ship.barrier = this.route.length;
-      return;
-    }
-    this.targetIndex++;
-    this.mission = missions[this.targetIndex];
-    this.waveIndex = 0;
-    this.waveId = -1;
-    this.nodeArmed = false;
-    ship.barrier = this.barrierFor(this.targetIndex);
-    this.enterTravel();
   }
 
   /** 0→1 through the whole route, for the HUD progress spine. */
@@ -438,10 +471,6 @@ export class Director {
   /** The node the HUD should draw a boss bar for, if any. */
   get activeNode(): Sector | null {
     return this.phase === 'node' ? this.sector : null;
-  }
-
-  get isReading(): boolean {
-    return this.dossierOpen;
   }
 
   get currentSectorId(): SectorId {

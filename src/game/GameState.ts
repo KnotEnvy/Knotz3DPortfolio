@@ -144,7 +144,6 @@ export class GameState {
   recordKill(xp: number): void {
     this.data.kills += 1;
     this.addXp(xp);
-    bus.emit('enemy:killed', { xp });
     this.unlock('first-blood');
     if (this.data.kills >= 25) this.unlock('sharpshooter');
     if (this.data.kills >= 100) this.unlock('gunner');
