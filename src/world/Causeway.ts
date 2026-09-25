@@ -56,6 +56,7 @@ const FRAG = /* glsl */ `
   uniform float uOpacity;
   uniform float uMinor;
   uniform float uMajor;
+  uniform float uPulse;
 
   varying vec2 vGrid;
   varying float vDepth;
@@ -116,6 +117,10 @@ const FRAG = /* glsl */ `
     strength *= 1.0 - clamp(fogFactor, 0.0, 1.0);
 
     vec3 col = uColor * (0.5 + major * 0.9 + band * 0.35) * strength;
+    // The floor moves with the score: every kick lifts the major rules most and
+    // the minor ones a little, so the grid breathes in time without the whole
+    // surface flashing.
+    col *= 1.0 + uPulse * (0.25 + major * 0.9);
 
     gl_FragColor = vec4(col, 1.0);
   }
@@ -193,6 +198,7 @@ export class Causeway {
         uMinor: { value: minor },
         uMajor: { value: major },
         uHalfWidth: { value: HALF_WIDTH },
+        uPulse: { value: 0 },
       },
       vertexShader: VERT,
       fragmentShader: FRAG,
@@ -208,7 +214,7 @@ export class Causeway {
     return { mesh, mat };
   }
 
-  update(elapsed: number, accent: THREE.Color, fogColor: THREE.Color, fogDensity: number): void {
+  update(elapsed: number, accent: THREE.Color, fogColor: THREE.Color, fogDensity: number, pulse = 0): void {
     // The floor takes a desaturated version of the sector accent: at full
     // strength a 700-metre lit surface becomes the brightest thing in frame.
     this.accent.copy(accent).multiplyScalar(0.55);
@@ -217,6 +223,7 @@ export class Causeway {
       (s.mat.uniforms.uColor.value as THREE.Color).lerp(this.accent, 0.06);
       (s.mat.uniforms.uFogColor.value as THREE.Color).copy(fogColor);
       s.mat.uniforms.uFogDensity.value = fogDensity;
+      s.mat.uniforms.uPulse.value = pulse;
     }
   }
 

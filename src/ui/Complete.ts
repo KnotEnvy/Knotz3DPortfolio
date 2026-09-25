@@ -1,6 +1,6 @@
 import { el, icons } from './dom';
 import { profile } from '../data/profile';
-import type { GameState } from '../game/GameState';
+import { ACHIEVEMENTS, type GameState } from '../game/GameState';
 
 export interface CompleteHandlers {
   close(): void;
@@ -76,7 +76,7 @@ export class Complete {
       ['Rank', this.state.rank],
       ['XP', String(this.state.xp)],
       ['Shards', `${this.state.collected}/${this.state.totalShards}`],
-      ['Awards', `${this.state.data.achievements.length}/10`],
+      ['Awards', `${this.state.data.achievements.length}/${ACHIEVEMENTS.length}`],
       ['Flight time', `${mins}m ${String(secs).padStart(2, '0')}s`],
     ];
     this.stats.replaceChildren(

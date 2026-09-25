@@ -65,6 +65,10 @@ export class Engine {
   private boost = 0;
   private damage = 0;
   private flash = 0;
+  private warpAmt = 0;
+  private shockAge = 1;
+  private shockTtl = 1;
+  private shockProj = new THREE.Vector3();
 
   tier: QualityTier;
   private frameSamples: number[] = [];
@@ -200,6 +204,29 @@ export class Engine {
     this.flash = Math.min(0.7, this.flash + amount);
   }
 
+  /**
+   * Refraction ring from a world-space point. Skipped when the point is behind
+   * the camera — a shockwave centred off-screen on the wrong side reads as the
+   * whole frame wobbling for no reason.
+   */
+  shockwave(at: THREE.Vector3, strength = 1, ttl = 0.9): void {
+    const p = this.shockProj.copy(at).project(this.camera);
+    if (p.z > 1 || p.z < -1) return;
+    const u = this.compositePass.uniforms.uShock.value as THREE.Vector4;
+    u.set(p.x * 0.5 + 0.5, p.y * 0.5 + 0.5, 0, clamp(strength, 0, 1.5));
+    this.shockAge = 0;
+    this.shockTtl = ttl;
+  }
+
+  get warpLevel(): number {
+    return this.warpAmt;
+  }
+
+  /** The hyperspace stretch on arriving in a sector. */
+  warp(amount = 1): void {
+    this.warpAmt = Math.max(this.warpAmt, amount);
+  }
+
   /** Rolling frame-time watchdog. Only ever steps quality down. */
   private governQuality(dt: number, now: number): void {
     this.frameSamples.push(dt);
@@ -224,6 +251,17 @@ export class Engine {
     // a white frame rather than an impact.
     this.flash = Math.max(0, this.flash - dt * 8);
     u.uFlash.value = this.flash;
+    this.warpAmt = Math.max(0, this.warpAmt - dt * 1.4);
+    // Eased so the stretch snaps in and relaxes out.
+    u.uWarp.value = this.warpAmt * this.warpAmt;
+    if (this.shockAge < this.shockTtl) {
+      this.shockAge += dt;
+      const t = Math.min(1, this.shockAge / this.shockTtl);
+      // Fast front that slows as it spreads, like a real blast wave.
+      (u.uShock.value as THREE.Vector4).z = 1 - Math.pow(1 - t, 2.2);
+    } else {
+      (u.uShock.value as THREE.Vector4).w = 0;
+    }
 
     this.composer.render();
     this.governQuality(dt, performance.now());

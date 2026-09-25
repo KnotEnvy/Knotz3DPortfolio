@@ -418,6 +418,7 @@ export class Director {
       this.hostiles = this.waveId >= 0 ? this.combat.aliveInWave(this.waveId) : 0;
       if (this.hostiles === 0) {
         this.phase = 'travel';
+        bus.emit('wave:clear', { index: this.waveIndex - 1 });
         const def = this.def;
         this.objectiveTitle = `Reach ${def.name}`;
         this.objectiveDetail =

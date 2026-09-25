@@ -37,6 +37,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'sharpshooter', name: 'Sharpshooter', note: 'Twenty-five hostiles destroyed' },
   { id: 'gunner', name: 'Gunnery Certified', note: 'One hundred hostiles destroyed' },
   { id: 'unshaken', name: 'Unshaken', note: 'Broke a node at full hull integrity' },
+  { id: 'chain-5', name: 'Chain Reaction', note: 'Five kills in one unbroken chain' },
 ];
 
 const achievementById = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
@@ -194,6 +195,11 @@ export class GameState {
 
   setMuted(m: boolean): void {
     this.data.muted = m;
+    this.persist();
+  }
+
+  setMusic(on: boolean): void {
+    this.data.music = on;
     this.persist();
   }
 

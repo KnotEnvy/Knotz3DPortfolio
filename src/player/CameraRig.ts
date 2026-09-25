@@ -31,12 +31,24 @@ export class CameraRig {
   private up = new THREE.Vector3(0, 1, 0);
   private initialised = false;
   private roll = 0;
+  /** Degrees added to the FOV by impacts and arrivals; springs back to zero. */
+  private fovKick = 0;
+  private fovBase = BASE_FOV;
 
   constructor(private camera: THREE.PerspectiveCamera) {}
 
   addShake(amount: number, decay = 1.8): void {
     this.shake = Math.min(1.6, this.shake + amount);
     this.shakeDecay = decay;
+  }
+
+  /**
+   * Punch the field of view. Positive widens (a blast shoving the lens back),
+   * negative narrows (a sector rushing up to meet you). Either way it springs
+   * back on its own; callers never have to undo it.
+   */
+  kick(degrees: number): void {
+    this.fovKick = Math.max(-16, Math.min(22, this.fovKick + degrees));
   }
 
   snap(ship: Ship): void {
@@ -118,9 +130,12 @@ export class CameraRig {
     this.roll = damp(this.roll, ship.bank * 0.42, 5, dt);
     this.camera.rotateZ(this.roll);
 
+    this.fovKick = damp(this.fovKick, 0, 3.2, dt);
     const fov = BASE_FOV + (BOOST_FOV - BASE_FOV) * clamp(ship.boostAmount, 0, 1);
-    if (Math.abs(this.camera.fov - fov) > 0.02) {
-      this.camera.fov = damp(this.camera.fov, fov, 5, dt);
+    this.fovBase = Math.abs(this.fovBase - fov) > 0.02 ? damp(this.fovBase, fov, 5, dt) : fov;
+    const want = this.fovBase + this.fovKick;
+    if (Math.abs(this.camera.fov - want) > 0.01) {
+      this.camera.fov = want;
       this.camera.updateProjectionMatrix();
     }
   }

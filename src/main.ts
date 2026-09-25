@@ -5,7 +5,8 @@ import { Engine } from './core/Engine';
 import { Input } from './core/Input';
 import { AudioEngine } from './core/Audio';
 import { bus } from './core/Events';
-import { clamp } from './core/Math';
+import { clamp, damp } from './core/Math';
+import type { Mood } from './core/Music';
 
 import { GameState } from './game/GameState';
 import { World } from './world/World';
@@ -16,6 +17,7 @@ import { Pickups } from './game/Pickups';
 import { Director } from './game/Mission';
 import { Particles } from './fx/Particles';
 import { Impacts } from './fx/Impacts';
+import { SpeedLines } from './fx/SpeedLines';
 
 import { Hud } from './ui/Hud';
 import { Codex } from './ui/Codex';
@@ -52,6 +54,7 @@ class App {
   private rig: CameraRig;
   private particles: Particles;
   private impacts: Impacts;
+  private speedLines = new SpeedLines();
   private combat: Combat;
   private pickups: Pickups;
   private director: Director;
@@ -84,6 +87,22 @@ class App {
   /** Hull integrity at the moment the current node was armed, for 'Unshaken'. */
   private hullAtNode = 1;
 
+  /**
+   * Time dilation. 1 is real time; a kill drops it for a few hundredths of a
+   * second, a node detonation for a quarter of one. The whole simulation and
+   * every effect slow together — the camera does not, so its shake and its
+   * FOV punch still land at full speed on top of a frozen frame, which is what
+   * makes a hit-stop feel like impact rather than like lag.
+   */
+  private dilation = 1;
+  private dilationHold = 0;
+  /** Kills in quick succession. A hit on the ship breaks it. */
+  private chain = 0;
+  private lastKillAt = -10;
+  private heartbeatIn = 0;
+  private wasBoosting = false;
+  private proj = new THREE.Vector3();
+
   constructor() {
     const canvas = document.getElementById('stage') as HTMLCanvasElement;
     this.ui = document.getElementById('ui') as HTMLElement;
@@ -109,22 +128,40 @@ class App {
     this.engine.scene.add(this.ship.object, this.ship.trail.object);
 
     this.rig = new CameraRig(this.engine.camera);
+    // Speed lines live in camera space, so the camera has to be in the scene
+    // graph for its children to render.
+    this.engine.scene.add(this.engine.camera);
+    this.engine.camera.add(this.speedLines.object);
 
     this.combat = new Combat(this.world.route, this.particles, this.impacts, {
       onKill: (_kind, at, xp) => {
         this.state.recordKill(xp);
         this.director.reportKill(at);
-        this.audio.pop(1);
+        this.chain = this.elapsed - this.lastKillAt < 2.4 ? this.chain + 1 : 1;
+        this.lastKillAt = this.elapsed;
+        this.hud.setChain(this.chain);
+        if (this.chain >= 5) this.state.unlock('chain-5');
+        this.popAt(at, `+${xp}`, 'xp');
+        this.audio.pop(1, this.chain);
         this.rig.addShake(0.2);
+        this.rig.kick(1.4);
         this.engine.punch(0.1);
+        this.hitStop(0.12, 0.035);
       },
       onPlayerHit: () => {
         this.audio.hurt();
         this.rig.addShake(0.55, 2.6);
+        this.rig.kick(-2.5);
         this.engine.punch(0.22);
+        this.chain = 0;
+        this.hud.setChain(0);
       },
-      onShoot: () => this.audio.shoot(),
+      onShoot: () => {
+        this.audio.shoot();
+        this.ship.kickback();
+      },
       onEnemyHit: (_at, killed) => {
+        this.hud.hitMarker(killed);
         if (!killed) this.audio.ping();
       },
     });
@@ -148,6 +185,14 @@ class App {
     this.codex = new Codex(this.ui, this.state, () => this.director.advance(this.ship));
 
     this.terminal = new Terminal(this.ui, this.state, {
+      music: (on) => {
+        if (on !== undefined) {
+          this.state.setMusic(on);
+          this.audio.setMusic(on);
+          this.audio.unlock();
+        }
+        return { on: this.audio.musicOn, track: this.audio.trackName };
+      },
       warp: (id) => this.warpTo(id),
       brief: (on) => this.setBrief(on),
       reset: () => this.resetProgress(),
@@ -197,6 +242,7 @@ class App {
 
     this.boot = new Boot(this.ui, { launch: () => this.start(), brief: () => this.setBrief(true) }, this.state.data.seenIntro);
 
+    this.audio.setMusic(this.state.data.music);
     this.wireEvents();
     this.warmUp();
 
@@ -219,19 +265,27 @@ class App {
   /* ------------------------------------------------------------------ */
 
   private wireEvents(): void {
-    bus.on('achievement', ({ name, note }) => {
+    bus.on('achievement', ({ id, name, note }) => {
       this.toasts.push(name, note);
       this.audio.ui();
+      if (id === 'rank') this.audio.rankUp();
     });
 
-    bus.on('shard:collect', () => {
+    bus.on('shard:collect', ({ xp }) => {
       this.audio.shard(this.state.streak);
       this.rig.addShake(0.1);
+      this.popAt(this.ship.object.position, `+${xp} XP`, 'shard');
     });
 
     bus.on('sector:enter', ({ id }) => {
       this.audio.enterSector();
-      this.audio.setIntensity(0.55);
+      this.audio.setSector(sectors.findIndex((s) => s.id === id));
+      // Drop out of warp: the frame stretches, the lens starts wide and
+      // settles, speed lines rush past. Every sector arrival, including a jump.
+      if (this.running) {
+        this.engine.warp(1);
+        this.rig.kick(14);
+      }
       const def = sectorById.get(id);
       if (def) document.documentElement.style.setProperty('--accent', `#${def.color.toString(16).padStart(6, '0')}`);
     });
@@ -247,21 +301,41 @@ class App {
     });
 
     bus.on('wave:spawn', () => {
-      this.audio.setIntensity(0.85);
       this.audio.alarm();
     });
 
+    bus.on('wave:clear', () => this.audio.waveClear());
+
     bus.on('node:armed', () => {
-      this.audio.setIntensity(1);
       this.hullAtNode = this.ship.integrity;
       this.rig.addShake(0.3);
+    });
+
+    bus.on('node:breached', ({ id }) => {
+      this.audio.shieldBreak();
+      this.rig.addShake(0.6);
+      this.rig.kick(6);
+      this.hitStop(0.2, 0.09);
+      const node = this.world.sector(id);
+      if (node) this.engine.shockwave(node.position, 0.7, 0.8);
     });
 
     bus.on('sector:decrypted', ({ id, broken }) => {
       if (broken) {
         this.audio.nodeBreak();
         this.rig.addShake(1.1, 1.2);
+        this.rig.kick(16);
         this.engine.punch(0.55);
+        // The payoff frame: time nearly stops for a quarter of a second while the
+        // blast front tears across the screen, then eases back to speed.
+        this.hitStop(0.15, 0.24);
+        const node = this.world.sector(id);
+        if (node) {
+          this.engine.shockwave(node.position, 1.3, 1.15);
+          this.popAt(node.position, 'DECRYPTED', 'big');
+        }
+        this.chain = 0;
+        this.hud.setChain(0);
         this.state.recordNode(this.hullAtNode >= 0.999);
       } else {
         // Flown back to a node that was already open. No detonation to land, no
@@ -278,11 +352,9 @@ class App {
     });
 
     bus.on('codex:open', () => {
-      this.audio.setIntensity(0.3);
       document.body.classList.add('codex-open');
     });
     bus.on('codex:close', () => {
-      this.audio.setIntensity(0.6);
       document.body.classList.remove('codex-open');
     });
 
@@ -303,11 +375,24 @@ class App {
     document.addEventListener('keydown', (e) => this.onKey(e));
 
     document.querySelector('.skip')?.addEventListener('click', () => this.setBrief(true));
+    // Audio may only start from a gesture. Any first key or click on the page
+    // counts, so the title card gets its music the moment the visitor touches
+    // anything — not only once they commit to Launch.
+    const firstGesture = () => {
+      this.audio.unlock();
+      this.audio.setMuted(this.state.data.muted);
+      window.removeEventListener('pointerdown', firstGesture, true);
+      window.removeEventListener('keydown', firstGesture, true);
+    };
+    window.addEventListener('pointerdown', firstGesture, true);
+    window.addEventListener('keydown', firstGesture, true);
+
     // A backgrounded tab should not keep flying and firing — but coming back
     // must resume. An earlier version only reset the clock on return and left
     // `paused` set, so anyone who checked a message mid-run came back to a live
     // HUD over a ship that would never move again.
     document.addEventListener('visibilitychange', () => {
+      this.audio.setHidden(document.hidden);
       if (document.hidden) {
         if (this.running) this.hiddenPause = this.paused = true;
         return;
@@ -382,6 +467,8 @@ class App {
     this.rig.snap(this.ship);
     this.rig.addShake(0.5);
     this.audio.boost();
+    this.engine.warp(1);
+    this.rig.kick(14);
 
     this.running = true;
     this.paused = false;
@@ -390,6 +477,32 @@ class App {
     this.lastFrame = performance.now();
 
     this.hintTimer = window.setTimeout(() => this.hud.fadeHint(), 14000);
+  }
+
+  /** Slow time to `scale` for `hold` seconds, then ease back. Never speeds up. */
+  private hitStop(scale: number, hold: number): void {
+    this.dilation = Math.min(this.dilation, scale);
+    this.dilationHold = Math.max(this.dilationHold, hold);
+  }
+
+  /** A score popup at a world position. Dropped if it is behind the camera. */
+  private popAt(at: THREE.Vector3, text: string, kind: 'xp' | 'shard' | 'big'): void {
+    if (!this.running) return;
+    const p = this.proj.copy(at).project(this.engine.camera);
+    if (p.z > 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) return;
+    this.hud.floater(p.x, p.y, text, kind);
+  }
+
+  /** What the score should be doing, from what is actually on screen. */
+  private moodNow(): Mood {
+    if (this.briefMode) return 'silent';
+    if (this.director.phase === 'complete' || this.complete.isOpen) return 'finale';
+    if (!this.running) return 'title';
+    if (this.paused || this.overlay.isOpen || this.terminal.isOpen) return 'paused';
+    if (this.codex.isOpen) return 'dossier';
+    if (this.director.phase === 'node') return 'boss';
+    if (this.combat.aliveCount > 0) return 'combat';
+    return 'travel';
   }
 
   private toggleSound(): boolean {
@@ -525,12 +638,20 @@ class App {
     this.lastFrame = now;
     const dt = clamp(raw, 0, 0.25);
 
-    if (this.briefMode) return;
+    if (this.briefMode) {
+      this.audio.setMood('silent');
+      return;
+    }
 
     const simulating = this.running && !this.paused;
 
+    // Ease out of a hit-stop in real time, whatever the simulation is doing.
+    if (this.dilationHold > 0) this.dilationHold -= dt;
+    else if (this.dilation < 1) this.dilation = this.dilation > 0.995 ? 1 : damp(this.dilation, 1, 7, dt);
+    const simDt = dt * this.dilation;
+
     if (simulating) {
-      this.accumulator += dt;
+      this.accumulator += simDt;
       let steps = 0;
       // Controls are suppressed while a panel owns the screen, but the world
       // keeps moving so the backdrop never freezes.
@@ -583,22 +704,50 @@ class App {
     this.world.setLabelled(this.director.targetIndex);
     this.rig.update(this.ship, dt, this.elapsed);
     this.ship.updateTrail(this.engine.camera);
-    this.pickups.update(dt, this.elapsed, this.ship, this.engine.camera);
-    this.particles.update(dt);
-    this.impacts.update(dt, this.engine.camera);
+    this.pickups.update(simDt, this.elapsed, this.ship, this.engine.camera);
+    this.particles.update(simDt);
+    this.impacts.update(simDt, this.engine.camera);
 
     // The world stands back while there is something to shoot. Driven from live
     // hostile count rather than the director's phase, so it also covers the
     // stragglers that outlive a wave.
     const engaged = this.combat.aliveCount > 0;
-    const accent = this.world.update(this.elapsed, dt, this.ship, this.engine.renderer.getPixelRatio(), engaged);
+    const accent = this.world.update(
+      this.elapsed,
+      dt,
+      this.ship,
+      this.engine.renderer.getPixelRatio(),
+      engaged,
+      this.audio.pulse,
+    );
     this.accent.copy(accent);
+    this.ship.combat = this.world.combat;
+    this.speedLines.update(simDt, this.ship.speed, this.ship.boostAmount, this.engine.warpLevel, this.accent);
+
+    if (simulating) {
+      // A whoosh on the rising edge of boost, not on every frame it is held.
+      if (this.ship.boosting && !this.wasBoosting) this.audio.boost();
+      this.wasBoosting = this.ship.boosting;
+
+      // Low hull in a fight: a heartbeat that quickens as integrity falls.
+      if (this.ship.integrity < 0.35 && engaged) {
+        this.heartbeatIn -= dt;
+        if (this.heartbeatIn <= 0) {
+          this.audio.heartbeat();
+          this.heartbeatIn = 0.55 + this.ship.integrity * 2;
+        }
+      } else this.heartbeatIn = 0;
+    }
 
     if (this.running) {
       this.hud.update(this.ship, this.director, this.elapsed);
       const r = this.input.reticle;
       this.hud.setReticle(r.x, r.y, r.active && !this.ship.hold && !this.paused);
     }
+
+    // Conducted after the simulation step, so a wave that spawned this frame is
+    // already a fight as far as the score is concerned.
+    this.audio.setMood(this.moodNow());
 
     this.engine.setPost(this.ship.boostAmount, this.ship.damageFlash * (1 - this.ship.integrity * 0.5), this.accent);
     this.engine.render(dt, this.elapsed);
@@ -620,6 +769,9 @@ class App {
       shardsInFlight: this.pickups.activeCount,
       particles: this.particles.count,
       tier: this.engine.tier.name,
+      music: this.audio.musicState,
+      dilation: +this.dilation.toFixed(2),
+      chain: this.chain,
       collected: this.state.collected,
       achievements: this.state.achievements.slice(),
       nodes: this.world.sectors.map((s) => ({ id: s.def.id, state: s.state, hp: +s.hp.toFixed(1) })),
@@ -654,6 +806,7 @@ class App {
     this.pickups.dispose();
     this.particles.dispose();
     this.impacts.dispose();
+    this.speedLines.dispose();
     this.audio.dispose();
     this.engine.dispose();
   }

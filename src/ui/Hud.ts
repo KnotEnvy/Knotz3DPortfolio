@@ -49,6 +49,11 @@ export class Hud {
 
   private reticle: HTMLElement;
   private hint: HTMLElement;
+  private chainEl: HTMLElement;
+  private chainNum: HTMLElement;
+  private chainTimer = 0;
+  private floaters: HTMLElement[] = [];
+  private floaterCursor = 0;
 
   private assist: HTMLElement;
   private assistText: HTMLElement;
@@ -127,7 +132,27 @@ export class Hud {
       el('span', { class: 'reticle__dot' }),
       el('span', { class: 'reticle__tick reticle__tick--l' }),
       el('span', { class: 'reticle__tick reticle__tick--r' }),
+      // Hit marker: four short strokes that flash on a connecting shot and
+      // flare wider, in the danger colour, on a kill.
+      el('span', { class: 'reticle__hit' }, [el('i'), el('i'), el('i'), el('i')]),
     ]);
+
+    /* ----------------------------------------------------- chain */
+    this.chainNum = el('b', { text: 'x2' });
+    this.chainEl = el('div', { class: 'chain', 'aria-hidden': 'true' }, [
+      this.chainNum,
+      el('span', { text: 'chain' }),
+    ]);
+
+    /* -------------------------------------------------- floaters */
+    // A small pool of score popups, reused round-robin. Pooled rather than
+    // created per kill because a busy wave can produce a dozen a second.
+    const floatLayer = el('div', { class: 'floaters', 'aria-hidden': 'true' });
+    for (let i = 0; i < 12; i++) {
+      const f = el('span', { class: 'floater' });
+      this.floaters.push(f);
+      floatLayer.append(f);
+    }
 
     // Escalating help for a stalled run. Hidden until the director asks for it.
     this.assist = el('div', { class: 'assist', role: 'status' }, [
@@ -155,7 +180,9 @@ export class Hud {
         ]);
 
     this.root = el('div', { class: 'hud' }, [
+      floatLayer,
       this.reticle,
+      this.chainEl,
       el('div', { class: 'hud__top' }, [this.objective, this.boss, this.assist]),
       this.spine,
       el('div', { class: 'hud__bottom' }, [
@@ -186,6 +213,42 @@ export class Hud {
       this.pop(this.shardCount);
     });
     this.syncStats();
+  }
+
+  /** Flash the reticle's hit marker. */
+  hitMarker(kill: boolean): void {
+    this.reticle.classList.remove('hit', 'kill');
+    void this.reticle.offsetWidth;
+    this.reticle.classList.add(kill ? 'kill' : 'hit');
+  }
+
+  /** Show the kill chain, or let it lapse. */
+  setChain(n: number): void {
+    window.clearTimeout(this.chainTimer);
+    if (n < 2) {
+      this.chainEl.classList.remove('on');
+      return;
+    }
+    this.chainNum.textContent = `x${n}`;
+    this.chainEl.classList.toggle('hot', n >= 5);
+    this.chainEl.classList.add('on');
+    this.pop(this.chainEl);
+    this.chainTimer = window.setTimeout(() => this.chainEl.classList.remove('on'), 2200);
+  }
+
+  /**
+   * A score popup at a screen position, in normalised device coordinates. The
+   * caller projects from the world; anything behind the camera is dropped there.
+   */
+  floater(x: number, y: number, text: string, kind: 'xp' | 'shard' | 'big' = 'xp'): void {
+    const f = this.floaters[this.floaterCursor];
+    this.floaterCursor = (this.floaterCursor + 1) % this.floaters.length;
+    f.textContent = text;
+    f.className = `floater floater--${kind}`;
+    f.style.left = `${((x + 1) / 2) * 100}%`;
+    f.style.top = `${((1 - y) / 2) * 100}%`;
+    void f.offsetWidth;
+    f.classList.add('go');
   }
 
   /** Show or clear the stall hint. */

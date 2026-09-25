@@ -37,8 +37,8 @@ The site is the argument. A visitor who wants to know whether I can build
 something ambitious in the browser should not have to take my word for it — they
 should be standing inside the answer. So there is no framework, no scene
 exporter and no template underneath: it is a hand-written Three.js engine with a
-fixed-step simulation, custom GLSL, procedural audio and an adaptive quality
-governor, plus a DOM layer for everything that ought to be real text.
+fixed-step simulation, custom GLSL, an adaptive procedural score and an adaptive
+quality governor, plus a DOM layer for everything that ought to be real text.
 
 And because attracting clients matters more than showing off, every word in the
 world also exists as an ordinary web page. Reduced-motion visitors and browsers
@@ -70,7 +70,9 @@ succeeded, the title card overflowing a narrow viewport, focus escaping a modal
 that claimed `aria-modal`, the touch hint rendering on top of the shard counter,
 a returning visitor being flown past every sector without being shown one word
 of the resume, and the completion card rendering entirely unstyled with all four
-of its calls to action below the fold.
+of its calls to action below the fold. It also reads the level off the final
+audio mix, because a procedural score with one zeroed gain plays perfect
+silence and reports every mood change correctly.
 
 ```bash
 npm run build
@@ -92,14 +94,14 @@ Node 20.19+ is required. The build has no runtime dependency beyond `three`.
 | `H` or `?` | Pause panel — controls, sector index, record |
 | `` ` `` or `~` | Toggle the terminal |
 | `B` | Toggle the written brief |
-| `M` | Mute |
+| `M` | Mute everything (`music off` in the terminal mutes just the score) |
 | `Esc` | Close the dossier, terminal or completion card |
 
 On a phone, drag anywhere to fly and the guns fire on their own.
 
 The terminal is a real command parser — `help`, `whoami`, `sectors`,
 `warp <sector>`, `dossier <sector>`, `projects`, `stack`, `contact`, `hire`,
-`status`, `brief`, `restart`, `reset`, `clear`. Unknown commands get a
+`status`, `music [on|off]`, `brief`, `restart`, `reset`, `clear`. Unknown commands get a
 Levenshtein-based suggestion.
 
 ## Architecture
@@ -110,14 +112,15 @@ src/
 ├── core/
 │   ├── Engine.ts        Renderer, camera, post chain, adaptive quality tiers
 │   ├── Input.ts         Keyboard, pointer and touch into one input state
-│   ├── Audio.ts         Procedural WebAudio — no audio files ship
+│   ├── Audio.ts         Effects bus, limiter, level meter — no audio files ship
+│   ├── Music.ts         The adaptive score: sequencer, six tracks, mood mixer
 │   ├── Events.ts        Typed pub/sub bus
 │   ├── Save.ts          Defensive localStorage progress
 │   └── Math.ts          clamp / lerp / damp / smoothstep / seeded PRNG
 ├── shaders/
 │   ├── hull.ts          Fresnel hull material: in-shader fog, panel lines
-│   └── composite.ts     Grain, vignette, chromatic aberration, boost streaks
-├── fx/                  Pooled GPU particles, impact flashes, ribbon trails
+│   └── composite.ts     Grain, vignette, aberration, boost streaks, shockwave, warp
+├── fx/                  Pooled GPU particles, impact flashes, ribbon trails, speed lines
 ├── world/
 │   ├── Route.ts         The flight spline, arc-length parameterised
 │   ├── World.ts         Scene graph, proximity activation, per-frame fog
@@ -150,8 +153,25 @@ scripts/smoke.mjs        Behavioural regression checks in headless Chromium
 - **Adaptive quality.** Frame time is sampled continuously. Sustained drops step
   the renderer down a tier — pixel ratio, bloom, grain, star count — instead of
   letting the experience stutter.
-- **Procedural audio.** The drone, the collection chimes and the decrypt fanfare
-  are synthesised in a WebAudio graph at runtime. Zero bytes of audio download.
+- **An adaptive score, synthesised live.** Six tracks, one per sector, each in
+  its own key and tempo and climbing from 96 BPM to 124 — the sectors run the
+  same script by design, so the music is what says the stakes went up. The game
+  never plays notes; it sets a mood (title, travel, combat, boss, dossier,
+  paused, finale) and a lookahead scheduler on the audio clock fades seven
+  layers — pad, arp, rolling bass, kick, snare, hats, lead — in and out on the
+  beat. A sidechain pump, a generated-impulse reverb and a tempo-synced delay
+  do the rest. Stingers land on the next sixteenth in the current key; shard
+  chimes climb the chord that is playing. Zero bytes of audio download.
+- **The world moves with the music.** The floor grid pulses on every kick the
+  visitor actually hears — read off the audio clock, not the scheduler, which
+  runs 120 ms ahead.
+- **Juice with restraint.** Kills freeze time for a few hundredths of a second;
+  a node detonation slows it for a quarter-second while a refraction ring tears
+  across the screen. The camera is deliberately *not* dilated, so its shake
+  and FOV punch land at full speed over a held frame. Hit markers, a kill
+  chain, score popups, gun recoil, warp-in arrivals and speed lines under
+  boost round it out. Engines ease down in a fight so the ship never
+  out-shines what is shooting at it.
 - **Shard magnetism.** Shards break orbit and chase the ship once you are close,
   so collecting them is "fly roughly there" rather than "thread a needle at 34
   units a second". A visitor did not come here to play a bullet-hell.
@@ -170,8 +190,9 @@ scripts/smoke.mjs        Behavioural regression checks in headless Chromium
 From the browser console:
 
 - `window.SIGNAL.debug()` — distance along the route, offset, speed, barrier,
-  hull, mission phase, objective, hostiles, particle count, quality tier and
-  per-node state.
+  hull, mission phase, objective, hostiles, particle count, quality tier,
+  per-node state, time dilation, kill chain, and the score's mood, track, tempo,
+  bar and live output level in dBFS.
 - `window.SIGNAL.goto('<sectorId>')` — jump straight to a sector.
 - `window.SIGNAL.restart()` — fly the corridor again from ORIGIN, keeping
   every shard, rank and award.

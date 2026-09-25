@@ -120,6 +120,11 @@ export class World {
     scene.fog = this.fog;
   }
 
+  /** 0→1, eased: how far the world has stood back for a fight. */
+  get combat(): number {
+    return this.environment.combatLevel;
+  }
+
   /** Tag only the sector being flown to; see Sector.labelled. */
   setLabelled(index: number): void {
     this.sectors.forEach((s, i) => {
@@ -148,6 +153,7 @@ export class World {
     ship: Ship,
     pixelRatio: number,
     engaged = false,
+    pulse = 0,
   ): THREE.Color {
     this.starfield.update(elapsed, pixelRatio);
 
@@ -173,7 +179,7 @@ export class World {
     this.fogTint.copy(deep).lerp(accent, 0.1).multiplyScalar(0.8);
     this.fog.color.lerp(this.fogTint, Math.min(1, dt * 1.2));
     setHullFog(this.fog.color, this.fog.density);
-    this.causeway.update(elapsed, accent, this.fog.color, this.fog.density);
+    this.causeway.update(elapsed, accent, this.fog.color, this.fog.density, pulse);
 
     for (const s of this.sectors) {
       s.update(elapsed, dt, ship.object.position);
