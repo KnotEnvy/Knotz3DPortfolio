@@ -32,6 +32,8 @@ export class Terminal {
       reset(): void;
       restart(): void;
       dossier(id: SectorId): void;
+      /** Set music on/off (or leave it, with undefined); returns the state and the track playing. */
+      music(on?: boolean): { on: boolean; track: string };
     },
   ) {
     this.log = el('div', { class: 'terminal__log scroll' });
@@ -196,6 +198,25 @@ export class Terminal {
         this.print(`kills    ${this.state.kills}`);
         this.print(`nodes    ${this.state.nodesBroken}/${sectors.length} broken`);
         this.print(`awards   ${this.state.data.achievements.length} unlocked`);
+      },
+    });
+
+    add({
+      name: 'music',
+      args: '[on|off]',
+      help: 'toggle the score, or see what is playing',
+      run: (args) => {
+        const a = (args[0] ?? '').toLowerCase();
+        if (a && a !== 'on' && a !== 'off') {
+          this.print('usage: music [on|off]', 'err');
+          return;
+        }
+        const r = this.hooks.music(a ? a === 'on' : undefined);
+        if (!r.on) this.print('music  off — effects still play. `music on` to bring it back.', 'ok');
+        else {
+          this.print(`music  on — now playing "${r.track}"`, 'ok');
+          this.print('       synthesised live in WebAudio; every sector has its own key and tempo.');
+        }
       },
     });
 

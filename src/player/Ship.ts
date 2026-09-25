@@ -79,6 +79,14 @@ export class Ship {
   boosting = false;
   /** Set while a dossier is open: the craft coasts to a stop and waits. */
   hold = false;
+  /**
+   * 0→1, how much of a fight is going on. Written by the app from the same
+   * eased signal that dims the scenery, so the ship's glow and the world's
+   * stand back together.
+   */
+  combat = 0;
+  /** Hull kick-back from the guns, in hull units; springs back to zero. */
+  private recoil = 0;
 
   readonly pose: Pose = makePose();
 
@@ -91,6 +99,8 @@ export class Ship {
   private tmp = new THREE.Vector3();
 
   private engines: THREE.Mesh[] = [];
+  /** Engine bell materials and their resting opacity, for the combat ease. */
+  private bellMats: Array<{ mat: THREE.MeshBasicMaterial; base: number }> = [];
   private enginePlume: THREE.Mesh;
   private plumeMat: THREE.MeshBasicMaterial;
   private intakeMat: THREE.MeshBasicMaterial;
@@ -236,7 +246,9 @@ export class Ship {
       nacelle.position.set(side * 2.5, -0.05, 1.7);
       this.hull.add(nacelle);
 
-      const bell = new THREE.Mesh(keep(new THREE.CircleGeometry(0.42, 18)), keep(glowMaterial(0x7fe8dc, 0.4)));
+      const bellMat = keep(glowMaterial(0x7fe8dc, 0.4));
+      this.bellMats.push({ mat: bellMat, base: 0.4 });
+      const bell = new THREE.Mesh(keep(new THREE.CircleGeometry(0.42, 18)), bellMat);
       bell.position.set(side * 2.5, -0.05, 2.78);
       this.engines.push(bell);
       this.hull.add(bell);
@@ -251,7 +263,9 @@ export class Ship {
       this.hull.add(f);
     }
 
-    const mainBell = new THREE.Mesh(keep(new THREE.CircleGeometry(0.72, 20)), keep(glowMaterial(0x8ff0e2, 0.44)));
+    const mainBellMat = keep(glowMaterial(0x8ff0e2, 0.44));
+    this.bellMats.push({ mat: mainBellMat, base: 0.44 });
+    const mainBell = new THREE.Mesh(keep(new THREE.CircleGeometry(0.72, 20)), mainBellMat);
     mainBell.position.set(0, 0, 3.15);
     this.engines.push(mainBell);
     this.hull.add(mainBell);
@@ -302,6 +316,11 @@ export class Ship {
     this.sync(route, 0);
     this.prevPos.copy(this.object.position);
     this.trail.reset(this.object.position);
+  }
+
+  /** A shot left the guns. */
+  kickback(): void {
+    this.recoil = Math.min(0.5, this.recoil + 0.22);
   }
 
   /** Apply damage. Returns true if the hit landed (mercy window not active). */
@@ -382,17 +401,33 @@ export class Ship {
     // --- visuals -------------------------------------------------------
     const throttle = 0.42 + this.boostAmount * 0.58 + (this.speed / BOOST_SPEED) * 0.2;
     this.enginePlume.scale.set(0.85 + this.boostAmount * 0.25, 0.6 + this.boostAmount * 1.5, 0.85 + this.boostAmount * 0.25);
-    this.plumeMat.opacity = (0.07 + this.boostAmount * 0.2) * (this.speed > 1 ? 1 : 0.15);
+    /*
+     * Engines ease down in a fight.
+     *
+     * Two reviewers independently found the engine glow had become the
+     * brightest thing in a combat frame, so the eye landed on your own ship
+     * before anything shooting at it — the threats > ship > objective > scenery
+     * order upside down. A lower static number would have left cruising flat,
+     * so the glow follows the same eased combat signal the scenery uses: full
+     * presence on the open road, stepped back behind the hostiles when there
+     * are any.
+     */
+    const calmGlow = 1 - this.combat * 0.5;
+    this.plumeMat.opacity = (0.07 + this.boostAmount * 0.2) * (this.speed > 1 ? 1 : 0.15) * calmGlow;
     for (const e of this.engines) {
       e.scale.setScalar(0.6 + throttle * 0.35 + Math.sin(elapsed * 26) * 0.035);
     }
-    this.intakeMat.opacity = 0.6 + Math.sin(elapsed * 3.1) * 0.14 + this.boostAmount * 0.3;
+    for (const b of this.bellMats) b.mat.opacity = b.base * calmGlow;
+    this.intakeMat.opacity = (0.6 + Math.sin(elapsed * 3.1) * 0.14 + this.boostAmount * 0.3) * (1 - this.combat * 0.35);
     this.canards.forEach((c, i) => {
       c.rotation.x = this.bank * (i === 0 ? 0.5 : -0.5) + this.nose * 0.4;
     });
     // Idle bob, scaled down at speed so it never fights the flight model.
     const calm = 1 - this.boostAmount * 0.7;
     this.hull.position.y = Math.sin(elapsed * 2.1) * 0.06 * calm;
+    // Recoil: shove the hull back along its own axis and let it spring home.
+    this.recoil = Math.max(0, this.recoil - dt * 3.2);
+    this.hull.position.z = this.recoil;
     // No throttle, no trail: a ship parked at a node for reading should not be
     // laying down a wake.
     const moving = Math.min(1, this.speed / 24);

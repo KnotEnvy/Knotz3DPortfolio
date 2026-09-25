@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { bus } from '../core/Events';
 import type { SectorDef } from '../data/sectors';
 import { createLandmark, type Landmark } from './Landmark';
 import { makeLabel } from './Label';
@@ -314,6 +315,7 @@ export class Sector {
   private breachShield(): void {
     this.state = 'breached';
     const p = this.object.position;
+    bus.emit('node:breached', { id: this.def.id });
 
     // Shatter: a bright ring on the shield's own radius plus a shell of debris
     // travelling outward at the shield surface, so the bubble visibly bursts.

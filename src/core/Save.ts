@@ -9,6 +9,8 @@ export interface SaveData {
   brief: boolean;
   seenIntro: boolean;
   muted: boolean;
+  /** The score on or off, independent of effects. */
+  music: boolean;
   /** Lifetime hostiles destroyed. */
   kills: number;
   /** Lifetime encryption nodes broken. */
@@ -26,6 +28,7 @@ const blank = (): SaveData => ({
   brief: false,
   seenIntro: false,
   muted: false,
+  music: true,
   kills: 0,
   nodes: 0,
 });

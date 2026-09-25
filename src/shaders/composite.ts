@@ -23,6 +23,10 @@ export const CompositeShader = {
     uFlash: { value: 0 },
     /** Accent colour of the current sector, used to tint the flash and edges. */
     uAccent: { value: new THREE.Color(0x4de1c1) },
+    /** Shockwave: xy = screen-space centre in uv, z = progress 0→1, w = strength. */
+    uShock: { value: new THREE.Vector4(0.5, 0.5, 1, 0) },
+    /** 0→1 hyperspace pulse on arriving in a sector. */
+    uWarp: { value: 0 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -43,6 +47,8 @@ export const CompositeShader = {
     uniform float uFlash;
     uniform vec3 uAccent;
     uniform vec2 resolution;
+    uniform vec4 uShock;
+    uniform float uWarp;
     varying vec2 vUv;
 
     float hash(vec2 p) {
@@ -53,6 +59,22 @@ export const CompositeShader = {
 
     void main() {
       vec2 uv = vUv;
+
+      // Shockwave. A ring of refraction racing out from a detonation's screen
+      // position: the frame itself bends where the blast front is. Aspect-
+      // corrected so the ring is a circle, not an ellipse the shape of the
+      // window, and faded as it grows so it never reaches the edges at strength.
+      float ring = 0.0;
+      if (uShock.w > 0.001 && uShock.z < 1.0) {
+        float aspect = resolution.x / max(resolution.y, 1.0);
+        vec2 d = (uv - uShock.xy) * vec2(aspect, 1.0);
+        float dist = length(d);
+        float radius = uShock.z * 0.95;
+        float band = 1.0 - smoothstep(0.0, 0.07, abs(dist - radius));
+        ring = band * (1.0 - uShock.z) * uShock.w;
+        uv -= (d / max(dist, 1e-4)) * vec2(1.0 / aspect, 1.0) * ring * 0.035;
+      }
+
       vec2 c = uv - 0.5;
       float r2 = dot(c, c);
 
@@ -60,7 +82,7 @@ export const CompositeShader = {
       // subtle: the starfield is made of near-pixel-sized points, and splitting
       // a one-pixel feature by two pixels does not fringe it, it triples it into
       // three coloured dots and the whole sky turns to rainbow confetti.
-      float ca = (r2 * 0.0014) * (1.0 + uBoost * 1.8 + uFlash * 1.6);
+      float ca = (r2 * 0.0014) * (1.0 + uBoost * 1.8 + uFlash * 1.6 + uWarp * 5.0) + ring * 0.006;
 
       // Radial streak. Taps are pulled toward the centre, weighted so the frame
       // edges smear hard under boost while the middle stays readable — the
@@ -75,7 +97,7 @@ export const CompositeShader = {
       // pull was subtle enough that the frame's speckle read as noise sitting on
       // a still image rather than as the frame moving — the streak has to be the
       // loudest thing about a boosted frame or the effect is doing nothing.
-      float streak = uBoost * 0.105 + uFlash * 0.02;
+      float streak = uBoost * 0.105 + uFlash * 0.02 + uWarp * 0.16;
       vec3 col;
       if (streak > 0.0005) {
         vec3 accum = vec3(0.0);
@@ -119,6 +141,14 @@ export const CompositeShader = {
       // Deliberately modest: a flash should be a punch you feel over a few
       // frames, not a white-out you have to sit through.
       col += mix(vec3(1.0), uAccent, 0.28) * uFlash * 0.34;
+
+      // The blast front carries a little light of its own, so the ring reads as
+      // energy rather than as a lens defect.
+      col += uAccent * ring * 0.16;
+
+      // Arrival: the edges glow in the new sector's colour as the frame
+      // un-stretches, which is what sells "we just dropped out of warp".
+      col += uAccent * smoothstep(0.08, 0.5, r2) * uWarp * 0.45;
 
       // Scanline. Subtle enough to survive on a phone, present enough to sell
       // the terminal fiction on a desktop.

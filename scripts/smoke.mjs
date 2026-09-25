@@ -290,21 +290,122 @@ await pc.waitForTimeout(2200);
 await pc.getByRole('button', { name: /Launch|Resume/ }).click();
 await pc.waitForTimeout(1800);
 await pc.evaluate(() => window.SIGNAL.goto('origin'));
+const travelMusic = await pc.evaluate(() => window.SIGNAL.debug().music);
+await pc.keyboard.down('Space');
 let fought = false;
+let fightMusic = null;
 for (let i = 0; i < 30 && !fought; i++) {
   await pc.waitForTimeout(700);
-  fought = await pc.evaluate(() => window.SIGNAL.debug().hostiles > 0);
+  const d = await pc.evaluate(() => window.SIGNAL.debug());
+  fought = d.hostiles > 0;
+  if (fought) {
+    fightMusic = d.music;
+    // Peak over a second, sampled in-page every 40 ms — how a level meter reads.
+    // A single snapshot is one 43 ms window, and one of those landing in a
+    // headless-sandbox stall read as silence while a continuous trace of the
+    // same fight never dropped below -56 dBFS. A dead graph is silent on every
+    // sample, so this cannot hide one.
+    fightMusic.level = await pc.evaluate(
+      () =>
+        new Promise((res) => {
+          const levels = [];
+          const id = setInterval(() => {
+            levels.push(window.SIGNAL.debug().music.level);
+            if (levels.length >= 25) {
+              clearInterval(id);
+              res(Math.max(...levels));
+            }
+          }, 40);
+        }),
+    );
+  }
 }
 await pc.waitForTimeout(2500);
+await pc.keyboard.up('Space');
 // Also exercise the node, dossier and completion materials.
 await pc.evaluate(() => window.SIGNAL.forceDossier());
 await pc.waitForTimeout(2000);
+const dossierMusic = await pc.evaluate(() => window.SIGNAL.debug().music);
 ok(fought, 'the console check actually reached a fight, so enemy materials were built');
 ok(
   consoleErrors.length === 0,
   `no console errors during a real run (${consoleErrors.length}): ${consoleErrors.slice(0, 3).join(' | ')}`,
 );
+
+/*
+ * 5e2. The score must follow the game, and must actually make sound.
+ *
+ * The music is a WebAudio graph conducted from the frame loop. The failure this
+ * guards is the one every procedural-audio bug takes: a gain somewhere left at
+ * zero, or a context that never left `suspended`, plays perfect silence, throws
+ * nothing, and reports every mood change correctly. So this reads the level off
+ * the final mix, not just the mood the conductor believes it set.
+ */
+ok(
+  travelMusic.mood === 'travel' && fightMusic?.mood !== undefined && ['combat', 'boss'].includes(fightMusic.mood),
+  `the score moves from travel to a fight (${travelMusic.mood} -> ${fightMusic?.mood})`,
+);
+ok(dossierMusic.mood === 'dossier', `the score strips back while a dossier is open (${dossierMusic.mood})`);
+ok(
+  fightMusic?.ctx === 'running' && Number.isFinite(fightMusic?.level) && fightMusic.level > -60,
+  `the mix is audible during a fight (ctx ${fightMusic?.ctx}, ${fightMusic?.level} dBFS)`,
+);
+
+/* 5e3. `music off` in the terminal silences the score and survives a reload. */
+await pc.keyboard.press('Escape');
+await pc.keyboard.press('`');
+await pc.waitForTimeout(300);
+await pc.keyboard.type('music off');
+await pc.keyboard.press('Enter');
+await pc.waitForTimeout(300);
+const musicOff = await pc.evaluate(() => ({
+  on: window.SIGNAL.debug().music.on,
+  saved: JSON.parse(localStorage.getItem('signal.save.v2')).music,
+}));
+ok(musicOff.on === false && musicOff.saved === false, `\`music off\` stops the score and is saved (${JSON.stringify(musicOff)})`);
 await pc.close();
+
+/*
+ * 5e4. A kill must be felt: a hit marker on the reticle, a score popup, and a
+ * hit-stop. Its own page at tier 0, because on a software renderer at tier 2
+ * the simulation crawls at a tenth of real time and a fight can run for a
+ * minute of wall clock before anything dies.
+ */
+const pj = await browser.newPage({ viewport: { width: 1200, height: 700 } });
+await pj.goto(`${BASE}/?tier=0`, { waitUntil: 'load' });
+await pj.waitForTimeout(2000);
+await pj.getByRole('button', { name: /Launch|Resume/ }).click();
+await pj.waitForTimeout(1200);
+await pj.evaluate(() => {
+  window.SIGNAL.goto('origin');
+  // Recorded as it happens rather than sampled afterwards: a hit marker lasts a
+  // third of a second, a popup under one, a hit-stop a few hundredths.
+  window.__juice = { kill: false, floater: false, stop: false };
+  new MutationObserver(() => {
+    if (document.querySelector('.reticle.kill')) window.__juice.kill = true;
+    if (document.querySelector('.floater.go')) window.__juice.floater = true;
+  }).observe(document.querySelector('.hud'), { subtree: true, attributes: true, attributeFilter: ['class'] });
+  const watch = () => {
+    if (window.SIGNAL.debug().dilation < 0.9) window.__juice.stop = true;
+    requestAnimationFrame(watch);
+  };
+  watch();
+});
+const killsBefore = await pj.evaluate(() => JSON.parse(localStorage.getItem('signal.save.v2')).kills);
+await pj.keyboard.down('Space');
+let juice = { kill: false, floater: false, stop: false, kills: killsBefore };
+for (let i = 0; i < 80 && !(juice.kill && juice.floater && juice.stop); i++) {
+  await pj.waitForTimeout(750);
+  juice = await pj.evaluate(() => ({ ...window.__juice, kills: JSON.parse(localStorage.getItem('signal.save.v2')).kills }));
+}
+await pj.keyboard.up('Space');
+// Assert the precondition: "no marker" means nothing if nothing died.
+const killed = juice.kills > killsBefore;
+ok(killed, `the kill-feedback check actually got a kill (${killsBefore} -> ${juice.kills})`);
+ok(killed && juice.kill, 'a kill flashes the reticle hit marker');
+ok(killed && juice.floater, 'a kill throws a score popup');
+ok(killed && juice.stop, 'a kill briefly stops time');
+await pj.close();
 
 /*
  * 5f. The dossier must be readable from the keyboard alone.
@@ -543,6 +644,14 @@ if (arrival) {
     };
   });
   ok(cta.styled, 'the finale card picks up its own stylesheet');
+  // The award total was a hard-coded "/10" against fifteen awards, so a thorough
+  // visitor's reward screen read "14/10".
+  const awards = await pr.evaluate(() => {
+    const cell = [...document.querySelectorAll('.finale *')].find((n) => /^\d+\/\d+$/.test(n.textContent.trim()) && /award/i.test(n.parentElement?.textContent ?? ''));
+    return cell ? cell.textContent.trim() : null;
+  });
+  const [got, of] = (awards ?? '0/0').split('/').map(Number);
+  ok(awards !== null && got <= of && of > 10, `the finale's award total is the real one (${awards})`);
   ok(cta.offscreen.length === 0, `every finale CTA is on screen (off: ${cta.offscreen.join(', ') || 'none'})`);
 
   /*

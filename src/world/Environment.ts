@@ -249,6 +249,11 @@ export class Environment {
    * reads as a bug; over about a second it reads as the world holding its
    * breath, and the player never consciously notices it at all.
    */
+  /** The eased 0→1 combat grade, so other things can stand back in step. */
+  get combatLevel(): number {
+    return this.combat;
+  }
+
   update(elapsed: number, dt = 0, engaged = false): void {
     const target = engaged ? 1 : 0;
     this.combat += (target - this.combat) * Math.min(1, dt * 2.2);

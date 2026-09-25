@@ -1,8 +1,8 @@
 {
   "$comment": "Handoff record for the next team or agent picking up this repository. Update the `updated` field and the relevant sections whenever the project changes materially. Read in this order: `status` for where things stand, `openItems` for what is owed (deploy-pages first — it is the one that can put an old resume in front of a client), `knownRisks` for the traps that have already cost someone a session, then `architecture` and `testing` before changing code. Every claim of verification here names how it was verified; if it does not say verified, treat it as unverified rather than assuming.",
   "schemaVersion": 1,
-  "updated": "2026-09-06",
-  "updatedBy": "Claude Opus 5 (agent-assisted session), reviewed by Jay W. Snyder",
+  "updated": "2026-09-25",
+  "updatedBy": "Claude (agent-assisted session), directed by Jay W. Snyder",
   "project": {
     "name": "SIGNAL",
     "repository": "KnotEnvy/Knotz3DPortfolio",
@@ -22,7 +22,7 @@
       "Founder / AI Engineer, Hacktivate Nation"
     ]
   },
-  "status": "v3 plus a follow-up session on the replay loop, merged to main on 2026-09-06. The run stops at every sector and hands its dossier back — including sectors already decrypted, which it used to fly straight past without showing a word of the resume — the approach to an open sector is a fast transit with no waves, and there is a real \"fly it again\" that keeps every shard, rank and award. That session also found the completion card had been shipping entirely unstyled: complete.css was renamed from `.done` to `.finale` at the block only, so every element rule still said `.done__*` while the markup said `.finale__*`. It rendered 1400x1624px in a 900px viewport with all four calls to action below the fold, on the one screen a visitor only reaches by finishing. READ THE deploy-pages OPEN ITEM BEFORE ANYTHING ELSE: main has moved, so the GitHub Pages mirror is now behind and needs `npm run deploy`.",
+  "status": "v3.1, merged to main on 2026-09-25: a juice-and-music pass. The drone soundtrack is replaced by an adaptive procedural score (src/core/Music.ts) — six tracks, one per sector, each in its own key and tempo, climbing 96 -> 124 BPM, with seven layers mixed live from the game's mood and the floor grid pulsing on the kick. Effects: hit-stop on kills and node breaks, a screen-space shockwave, warp-in arrivals, speed lines under boost, FOV punch, gun recoil, reticle hit markers, a kill chain and score popups. Engines now ease down in a fight, closing the hierarchy-inversion item. The finale's award total was hard-coded '/10' against fifteen awards and now reads the real count. READ openItems: the four stale branches are still there (this session's permission policy refused the delete), and the GitHub Pages mirror must be republished after every merge.",
   "deployment": {
     "intendedHost": "Vercel",
     "productionUrl": "https://knotz3d-portfolio.vercel.app/",
@@ -78,7 +78,8 @@
     ],
     "bundleSize": {
       "note": "Run `npm run build` for current figures. Three is split into its own chunk via rollupOptions.manualChunks so app changes do not invalidate it, and SMAAPass is a lazy dynamic import because its lookup textures are ~38 kB gzipped and only the top quality tier uses it."
-    }
+    },
+    "version": "3.1.0"
   },
   "commands": {
     "install": "npm install",
@@ -95,9 +96,9 @@
     "entryPoint": "src/main.ts",
     "loop": "Fixed-step simulation at 60 Hz with an accumulator and a 5-step cap, decoupled from rendering. Frame rate never changes flight feel, weapon cadence or collision. The whole route is 3654 m; at cruise that is about 56 seconds of flying end to end, or 39 with the faster transit a replay gets.",
     "directories": {
-      "src/core": "Engine (renderer, post chain, adaptive quality tiers), Input, Audio, Events bus, Save, Math helpers",
+      "src/core": "Engine (renderer, post chain, adaptive quality tiers), Input, Audio (effects bus, limiter, level meter), Music (the adaptive score), Events bus, Save, Math helpers",
       "src/shaders": "Fresnel hull material with in-shader fog and procedural panel lines; the composite post pass",
-      "src/fx": "Pooled GPU particles, shockwave/flash impacts, camera-facing ribbon trails",
+      "src/fx": "Pooled GPU particles, shockwave/flash impacts, camera-facing ribbon trails, camera-space speed lines",
       "src/world": "Route (the flight spline), Sector nodes, Landmarks, Corridor gates, Causeway floor, Environment props, Nebula, Starfield, Labels",
       "src/player": "Rail flight model and the chase camera rig",
       "src/game": "GameState (XP, ranks, shards, achievements), Combat, Pickups, Mission director",
@@ -115,9 +116,13 @@
       "Causeway: a ribbon swept along the route spline, ruled with a grid, giving the corridor a floor and a vanishing point.",
       "Adaptive quality governor steps pixel ratio, bloom, particle budget and prop density down a tier rather than stuttering. SMAA on the top tier is lazily imported.",
       "Composite post pass driven by gameplay: boost streaks, damage vignette, explosion punch.",
-      "Procedural WebAudio throughout, including filtered noise bursts for explosions. Zero audio files ship."
+      "Adaptive procedural score (src/core/Music.ts). The game sets a mood each frame (silent, title, travel, combat, boss, dossier, paused, finale) from what is actually on screen; each mood is a gain per layer (pad, arp, bass, kick, snare, hat, lead) plus a bus cutoff. A 25 ms timer schedules the next 200 ms of sixteenths on the audio clock. Track changes land on the next downbeat, stingers on the next sixteenth. Harmony is chord-relative, so the lead and every in-key effect (shard chimes, kill-chain pitches, the detonation flourish) can never clash with the progression.",
+      "Sidechain pump: every kick automates one dedicated gain node that the pad, arp, bass and lead pass through. Only kicks touch it, so it never fights the mood fades for a parameter.",
+      "Audio-reactive floor: Music.pulse() reads the latest kick that has already sounded on the audio clock (not the scheduler, which runs 200 ms ahead) and the causeway's major rules brighten on it.",
+      "Hit-stop: main.ts scales the simulation, particles, impacts and pickups by a dilation factor that drops on kills (0.12 for 35 ms), shield breaches and node breaks (0.15 for 240 ms) and eases back in real time. The camera is not dilated, so shake and FOV punch land at full speed over a held frame.",
+      "Composite pass extras: an aspect-corrected refraction ring projected from a world position (Engine.shockwave) and a warp pulse on sector arrival (Engine.warp) that stretches the radial streak and tints the edges."
     ],
-    "debugging": "`window.SIGNAL.debug()` returns distance along the route, offset, speed, barrier, hull, mission phase, objective, hostiles, particle count, quality tier and per-node state. `window.SIGNAL.goto(<sectorId>)` jumps to a sector; `window.SIGNAL.restart()` flies the corridor again from ORIGIN keeping progress; `window.SIGNAL.forceDossier()` opens the current dossier without fighting for it. `?tier=0|1|2` pins the quality tier."
+    "debugging": "`window.SIGNAL.debug()` returns distance along the route, offset, speed, barrier, hull, mission phase, objective, hostiles, particle count, quality tier, per-node state, time dilation, kill chain, and the score's mood, track, BPM, bar and live output level in dBFS. `window.SIGNAL.goto(<sectorId>)` jumps to a sector; `window.SIGNAL.restart()` flies the corridor again from ORIGIN keeping progress; `window.SIGNAL.forceDossier()` opens the current dossier without fighting for it. `?tier=0|1|2` pins the quality tier."
   },
   "content": {
     "singleSourceOfTruth": true,
@@ -230,7 +235,9 @@
     "Dossiers closed themselves a few seconds after arrival as the ship drifted out of the sector radius.",
     "The ORIGIN torus knot rendered as an invisible dark silhouette: a smooth knot has no hard edges, so EdgesGeometry produced nothing to draw.",
     "Arriving at a sector whose node was already open advanced the run on the spot, so a returning visitor — or anyone replaying — flew the whole corridor end to end and was shown none of the resume.",
-    "The completion card matched none of its own stylesheet: `.finale__*` in the markup against `.done__*` in the CSS. No width cap, no padding, no background, no scroll, and every call to action off screen."
+    "The completion card matched none of its own stylesheet: `.finale__*` in the markup against `.done__*` in the CSS. No width cap, no padding, no background, no scroll, and every call to action off screen.",
+    "The finale showed awards as 'N/10' from a hard-coded denominator while fifteen awards existed, so a thorough visitor's reward screen read '14/10'.",
+    "The boot screen's 'Compiling shaders' stage compiled almost nothing that matters in a fight: three's renderer.compile() walks visible objects only, and every pooled hostile, the node cores and the speed lines start hidden. The first wave compiled its materials on the spot, a hitch at the exact moment the first fight starts. warmUp now reveals hidden objects for the compile and restores them."
   ],
   "openItems": [
     {
@@ -241,17 +248,12 @@
     {
       "id": "delete-stale-branches",
       "priority": "low",
-      "item": "Remote branches fully contained in main with zero unmerged commits: claude/gamified-3d-portfolio-r7vfyi, claude/3d-portfolio-polish-8dxhjx, update-node-version, and claude/portfolio-flight-sector-stops-jklu0u once the 2026-09-06 merge is in. Deleting them is lossless. Agent sessions cannot: the git proxy returns HTTP 403 on a delete refspec and there is no API tool for it. Remove them from the GitHub branches page."
+      "item": "Still open as of 2026-09-25. Remote branches with zero commits not in main (verified with `git rev-list --count origin/main..<branch>` = 0 for each): claude/3d-portfolio-polish-8dxhjx, claude/gamified-3d-portfolio-r7vfyi, claude/portfolio-flight-sector-stops-jklu0u, update-node-version — plus this session's claude/laughing-wozniak-me03gw once its merge is in. Deleting them is lossless. Agent sessions have been refused twice now (HTTP 403 from the git proxy on an earlier session; the session permission policy on this one). Delete them from the GitHub branches page. Keep gh-pages: it is the Pages deploy target."
     },
     {
       "id": "graphics-polish",
       "priority": "medium",
-      "item": "The three items the final graphics review named, none of them defects. Boost still reads closer to fine speckle than to directional speed-lines — the streak strength and particle count both likely need another pass, not just the resize they got. The combat desaturation may be overcorrected: it solves legibility convincingly but the scene goes near-monochrome during fights, which is most of the runtime in a dense sector; keeping 10-15% more chroma in the floor grid would help. And per-sector prop silhouettes are genuinely different primitives now but read as similar at distance because they share a material treatment and clustering density."
-    },
-    {
-      "id": "hierarchy-inversion",
-      "priority": "medium",
-      "item": "Flagged independently by two reviewers in the final round: the player ship's engine glow is now the brightest element in frame, so the eye lands on your own ship before the hostiles — inverting the threats > ship > objective > scenery order the grading work was built around. Halving the ship's glow points fixed a blown-out silhouette but overshot for the engines. The clean fix is to let the engine glow ease down with the same combat dim the environment already uses (src/world/Environment.ts update), rather than another static number."
+      "item": "Partly addressed 2026-09-25. Boost now has discrete camera-space speed lines (src/fx/SpeedLines.ts) on top of the radial streak, which is what the 'fine speckle' note was asking for; confirm on real hardware that they read as speed rather than rain. The floor grid now pulses with the score, which restores some motion and chroma to fight frames, but the combat desaturation itself is unchanged. Per-sector prop silhouettes still share a material treatment and read as similar at distance."
     },
     {
       "id": "art-direction",
@@ -272,6 +274,16 @@
       "id": "unstyled-class-audit",
       "priority": "low",
       "item": "The finale bug was a class-name rename that stopped halfway between the stylesheet and the markup, and nothing in the toolchain can see that: TypeScript does not check class strings and CSS does not know what the DOM emits. A build-time diff of the class names the TS emits against the ones the CSS defines would have caught it in a second. Worth adding if another component is ever renamed."
+    },
+    {
+      "id": "music-listen",
+      "priority": "medium",
+      "item": "The score was built and verified by measurement — mood transitions, a live output level on the final mix, a clean console — not by ear on real speakers. Listen through all six sectors once on headphones and on a laptop speaker. The levels most likely to want a nudge: MOODS in src/core/Music.ts (per-layer gains), the Music output gain (0.55), and the pad voice peak (0.034). Nothing else needs touching to rebalance the mix."
+    },
+    {
+      "id": "music-control-ui",
+      "priority": "low",
+      "item": "Music can be turned off independently of effects only from the terminal (`music off`); `M` and the toolbar button still mute everything. A visible music toggle in the pause panel would be friendlier for visitors who like the effects but not the score."
     }
   ],
   "knownRisks": [
@@ -286,7 +298,12 @@
     "A dist/ mtime older than a commit does NOT mean the build is stale — the build runs before the commit. A reviewer inferred a stale-build process fault from exactly that and it was wrong. Verify what a bundle contains by grepping it or by measuring behaviour in the running app, never by comparing timestamps.",
     "A CSS class rename is invisible to every check in this project. TypeScript does not type class strings, the CSS does not know what the DOM emits, and a behavioural test still passes because the elements are all present and clickable in the accessibility tree — the finale shipped unstyled for exactly this reason, on the one panel a visitor only reaches by finishing. When renaming a block, grep the other side.",
     "`sector:decrypted` now carries `broken`. It is false when the ship simply flew back to a node that was already open, and anything that pays out — XP, the node count, the 'Unshaken' award, the detonation — must stay behind that flag or a visitor farms the same chapter by re-reading it.",
-    "Never time this product in a headless software renderer. Chromium on swiftshader runs the loop at a few frames a second and the fixed-step cap then advances sim time at a fraction of real time, which made a 56-second corridor look like four and a half minutes in a review of this very session. Time the forward model directly (it is self-contained arithmetic in Ship.step) or measure on real hardware."
+    "Never time this product in a headless software renderer. Chromium on swiftshader runs the loop at a few frames a second and the fixed-step cap then advances sim time at a fraction of real time, which made a 56-second corridor look like four and a half minutes in a review of this very session. Time the forward model directly (it is self-contained arithmetic in Ship.step) or measure on real hardware.",
+    "The score's scheduler runs on a setInterval that browsers throttle to 1 Hz in a background tab, which would starve the 200 ms lookahead and play the music as a stutter. AudioEngine.setHidden suspends the context when the tab hides and resyncs the clock on return; keep that wired to visibilitychange.",
+    "Music.setMood is called every frame and is idempotent by design. Call it AFTER the simulation step: calling it before lagged a spawned wave by one frame, which the smoke suite caught.",
+    "Hit-stop dilates the simulation and effects but deliberately not the camera, the HUD, or the dossier timers. Anything new that should freeze on impact has to be fed simDt in main.ts, not dt.",
+    "A procedural audio bug is silent in every sense: a zeroed gain plays nothing and throws nothing. The level meter (AudioEngine.level, surfaced in SIGNAL.debug().music.level) is how you tell a quiet mix from a dead one; the smoke suite asserts it during a fight.",
+    "renderer.compile() uses traverseVisible. Anything added hidden (a pool, a lazily shown effect) is not pre-compiled unless it is inside the scene when warmUp runs — main.ts reveals hidden objects for that one call, so adding a new pooled effect to the scene before warmUp is enough."
   ],
   "conventions": {
     "branching": "Feature work on `claude/<topic>` branches, merged to `main` with --no-ff.",
@@ -343,6 +360,16 @@
       "id": "replay-pacing",
       "resolved": "2026-09-05",
       "note": "The approach to an already-decrypted sector is now a transit rather than an encounter: no waves spawn and the ship cruises at TRANSIT_SPEED (110 m/s) instead of CRUISE_SPEED (68). Deliberately short of BOOST_SPEED (132), so boost still means something on the legs where it is most tempting to hold it. Measured against the real forward model, not the sandbox: a full six-sector replay is 38.8s of flying, down from 55.6s. The waves mattered more than the speed — they were putting 'Clear the scout drones — 7 hostiles remaining' on the objective line of a sector whose dossier opens on arrival regardless."
+    },
+    {
+      "id": "hierarchy-inversion",
+      "resolved": "2026-09-25",
+      "note": "The ship's engine bells, plume and intake now ease down with the same eased combat signal that dims the scenery (Ship.combat, fed from World.combat), rather than another static number. Full presence on the open road, stepped back behind hostiles when there are any."
+    },
+    {
+      "id": "sector-escalation-audio",
+      "resolved": "2026-09-25",
+      "note": "Partial answer to the sector-escalation item: the score escalates across sectors (tempo 96 -> 124, busier hats in sectors 4-6, a lead line in every boss). The mechanics still run the same script six times."
     }
   ],
   "testing": {
@@ -368,8 +395,13 @@
       "Re-reading an open dossier awards no XP and no node credit",
       "The last dossier's Continue reaches the finale",
       "The finale card picks up its own stylesheet and every one of its calls to action is on screen",
-      "\"Fly it again\" restarts the run at ORIGIN with every shard still earned"
+      "\"Fly it again\" restarts the run at ORIGIN with every shard still earned",
+      "The score moves from travel into a fight and strips back for a dossier",
+      "The final audio mix is actually audible during a fight, read off an analyser rather than from the conductor's own state",
+      "`music off` stops the score and persists to the save",
+      "A kill flashes the hit marker, throws a score popup and briefly stops time — with the check asserting that a kill actually happened",
+      "The finale's award total matches the real number of awards"
     ],
-    "note": "The passive-visitor check is timing-marginal on a software renderer. In a swiftshader sandbox it took 268s of its 300s budget on the pre-change build and 172s after, and it does fail there on a slow run — it is measuring how long an autofiring ship takes to kill a node at 2-5 fps, not the product. On real hardware it finishes in seconds. If it fails, re-run before believing it, and compare against the previous build rather than weakening the check."
+    "note": "The passive-visitor check is timing-marginal on a software renderer. In a swiftshader sandbox it took 268s of its 300s budget on the pre-change build and 172s after, and it does fail there on a slow run — it is measuring how long an autofiring ship takes to kill a node at 2-5 fps, not the product. On real hardware it finishes in seconds. If it fails, re-run before believing it, and compare against the previous build rather than weakening the check. The audibility check reads the peak level over one second sampled in-page every 40 ms, not a single snapshot. In the swiftshader sandbox, single 43 ms snapshots taken through Playwright round-trips occasionally read near-silent (-77 to -98 dBFS) once per run, around the first wave, while a continuous 40 ms trace of the same fight never dropped below -56 dBFS and a fight with the mood frozen never did either. The cause was not pinned down; it did not reproduce with continuous sampling at either tier. If a listener ever reports the score dropping out at the first wave on real hardware, start there."
   }
 }

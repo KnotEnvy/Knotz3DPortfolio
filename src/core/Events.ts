@@ -8,6 +8,10 @@ export interface AppEvents {
   'mission:card': { code: string; name: string; subtitle: string; brief: string; index: number; total: number; color: number };
   'wave:spawn': { index: number; count: number };
   'node:armed': { id: SectorId; name: string };
+  /** A node's shield collapsed; the core is exposed. */
+  'node:breached': { id: SectorId };
+  /** Every hostile in a wave is down. */
+  'wave:clear': { index: number };
   /** The run has stalled; the interface should start helping. */
   'assist:hint': { text: string };
   'assist:autofire': void;
