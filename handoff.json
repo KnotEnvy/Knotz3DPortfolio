@@ -22,11 +22,11 @@
       "Founder / AI Engineer, Hacktivate Nation"
     ]
   },
-  "status": "v3.1, merged to main on 2026-09-25: a juice-and-music pass. The drone soundtrack is replaced by an adaptive procedural score (src/core/Music.ts) — six tracks, one per sector, each in its own key and tempo, climbing 96 -> 124 BPM, with seven layers mixed live from the game's mood and the floor grid pulsing on the kick. Effects: hit-stop on kills and node breaks, a screen-space shockwave, warp-in arrivals, speed lines under boost, FOV punch, gun recoil, reticle hit markers, a kill chain and score popups. Engines now ease down in a fight, closing the hierarchy-inversion item. The finale's award total was hard-coded '/10' against fifteen awards and now reads the real count. READ openItems: the four stale branches are still there (this session's permission policy refused the delete), and the GitHub Pages mirror must be republished after every merge.",
+  "status": "v3.1, merged to main on 2026-09-25: a juice-and-music pass. The drone soundtrack is replaced by an adaptive procedural score (src/core/Music.ts) — six tracks, one per sector, each in its own key and tempo, climbing 96 -> 124 BPM, with seven layers mixed live from the game's mood and the floor grid pulsing on the kick. Effects: hit-stop on kills and node breaks, a screen-space shockwave, warp-in arrivals, speed lines under boost, FOV punch, gun recoil, reticle hit markers, a kill chain and score popups. Engines now ease down in a fight, closing the hierarchy-inversion item. The finale's award total was hard-coded '/10' against fifteen awards and now reads the real count. READ openItems: the four stale branches are still there (this session's permission policy refused the delete), and the GitHub Pages mirror must be republished after every merge — it was, and verified, for this one.",
   "deployment": {
     "intendedHost": "Vercel",
     "productionUrl": "https://knotz3d-portfolio.vercel.app/",
-    "verified": false,
+    "verified": true,
     "config": {
       "file": "vercel.json",
       "framework": "vite",
@@ -40,19 +40,19 @@
       "githubPages": {
         "url": "https://knotenvy.github.io/Knotz3DPortfolio/",
         "live": true,
-        "stale": true,
-        "servingCommit": "e6eac4a — six commits behind main as of 2026-09-06",
-        "publishedAt": "2026-09-03",
+        "stale": false,
+        "servingCommit": "9a85515 (v3.1 merge)",
+        "publishedAt": "2026-09-25",
         "publishCommand": "npm run deploy",
         "branch": "gh-pages",
-        "verified": false,
-        "verificationMethod": "Last verified 2026-09-03 against a build that is now six commits old. The mirror does not auto-publish, so it is serving a resume without the sector stops, the restart controls or the finale fix.",
+        "verified": true,
+        "verificationMethod": "2026-09-25: `npm run deploy` from main; the gh-pages branch tree is byte-identical to dist/ (diff -r), and the live page served the new index bundle about 30 s after publishing.",
         "role": "Mirror, not canonical. Serves identical bytes; index.html points canonical at the Vercel URL, which is exactly what canonical is for. Republish with `npm run deploy` whenever main changes, or retire it — nothing depends on it.",
         "note": "Webfonts are self-hosted from public/fonts (see src/styles/fonts.css), so there are no third-party font requests to fail. An earlier version of this record warned about a blocked fonts.googleapis.com request; that was true of the pre-2026-09-03 build and is not true of any current one."
       }
     },
-    "verificationMethod": "Vercel redeploys automatically on push to main and did so for the 2026-09-06 merge, but the byte-for-byte verification recorded here was performed against the 2026-09-03 build and has NOT been repeated since. To redo it: `npm run build`, then fetch the five deployed artifacts from the production origin and compare SHA-256 against dist/. Response headers should still show `cache-control: public, max-age=31536000, immutable` and `x-content-type-options: nosniff` on hashed assets, neither of which Vercel adds by default — that is how you know vercel.json is in effect.",
-    "browserVerification": "The built bundle is driven in headless Chromium by `npm run smoke` on every change; 35 checks, all passing as of the 2026-09-06 merge. That runs against a locally served dist/, not against the production origin: the sandbox relay resets Chromium's TLS tunnel to external hosts, so a browser pass against the live URL has to be done from a normal network."
+    "verificationMethod": "Verified 2026-09-25 against the v3.1 merge (9a85515): `npm run build`, then SHA-256 of index.html and the four hashed JS/CSS assets fetched from the production origin all match dist/. Hashed assets carry `cache-control: public, max-age=31536000, immutable` and `x-content-type-options: nosniff`, neither of which Vercel adds by default, so vercel.json is in effect. Redo it the same way after any merge.",
+    "browserVerification": "The built bundle is driven in headless Chromium by `npm run smoke` on every change; 47 checks, all passing on the 2026-09-25 v3.1 merge. That runs against a locally served dist/, not against the production origin: the sandbox relay resets Chromium's TLS tunnel to external hosts, so a browser pass against the live URL has to be done from a normal network."
   },
   "stack": {
     "runtime": "Browser, no server",
@@ -243,7 +243,7 @@
     {
       "id": "deploy-pages",
       "priority": "high",
-      "item": "DO THIS FIRST. GitHub Pages does not publish itself. main moved on 2026-09-06 and the mirror at knotenvy.github.io/Knotz3DPortfolio is six commits behind, serving a resume that still flies past every sector without opening a dossier and whose completion card is unstyled with its calls to action off screen. Run `npm run deploy` from a checkout of main, then confirm the live bytes match dist/. Alternatively retire the mirror — index.html points canonical at Vercel and nothing depends on Pages — but leaving it stale is the worst of the three options, because it is an indexed URL a client can land on."
+      "item": "Republished and verified on 2026-09-25 for the v3.1 merge. It remains open as a standing rule, not a backlog item: GitHub Pages does not publish itself, so every merge to main needs `npm run deploy` or the mirror at knotenvy.github.io/Knotz3DPortfolio goes stale on an indexed URL. Retiring the mirror is the other clean option; leaving it stale is the bad one."
     },
     {
       "id": "delete-stale-branches",
