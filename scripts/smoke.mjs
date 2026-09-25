@@ -298,7 +298,27 @@ for (let i = 0; i < 30 && !fought; i++) {
   await pc.waitForTimeout(700);
   const d = await pc.evaluate(() => window.SIGNAL.debug());
   fought = d.hostiles > 0;
-  if (fought) fightMusic = d.music;
+  if (fought) {
+    fightMusic = d.music;
+    // Peak over a second, sampled in-page every 40 ms — how a level meter reads.
+    // A single snapshot is one 43 ms window, and one of those landing in a
+    // headless-sandbox stall read as silence while a continuous trace of the
+    // same fight never dropped below -56 dBFS. A dead graph is silent on every
+    // sample, so this cannot hide one.
+    fightMusic.level = await pc.evaluate(
+      () =>
+        new Promise((res) => {
+          const levels = [];
+          const id = setInterval(() => {
+            levels.push(window.SIGNAL.debug().music.level);
+            if (levels.length >= 25) {
+              clearInterval(id);
+              res(Math.max(...levels));
+            }
+          }, 40);
+        }),
+    );
+  }
 }
 await pc.waitForTimeout(2500);
 await pc.keyboard.up('Space');

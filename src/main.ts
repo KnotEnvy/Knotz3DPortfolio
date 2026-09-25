@@ -450,7 +450,25 @@ class App {
     let step = 0;
     const advance = () => {
       this.boot.setProgress(step / (stages.length - 1), stages[step]);
-      if (step === 1) this.engine.renderer.compile(this.engine.scene, this.engine.camera);
+      if (step === 1) {
+        // three's compile() walks visible objects only, and nearly everything
+        // that matters in a fight — every pooled hostile, the node cores, the
+        // speed lines — starts hidden. So this stage used to compile the scenery
+        // and nothing else, and the first wave compiled its materials on the
+        // spot: a hitch at the exact moment the first fight starts, long enough
+        // on a slow GPU to drain the music scheduler and drop the score out.
+        // Reveal everything for the compile, then put it back; nothing renders
+        // in between.
+        const hidden: THREE.Object3D[] = [];
+        this.engine.scene.traverse((o) => {
+          if (!o.visible) {
+            hidden.push(o);
+            o.visible = true;
+          }
+        });
+        this.engine.renderer.compile(this.engine.scene, this.engine.camera);
+        for (const o of hidden) o.visible = false;
+      }
       step++;
       if (step < stages.length) requestAnimationFrame(advance);
     };

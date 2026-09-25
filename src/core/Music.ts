@@ -17,7 +17,7 @@
  *    of seven layers plus a filter cutoff. A wave spawning brings in the kick and
  *    the rolling bass; breaking into a node adds the lead; opening a dossier
  *    strips everything back to the pad under a closed filter so it can be read.
- *  - **Timing.** A lookahead scheduler (a timer that queues the next ~120 ms of
+ *  - **Timing.** A lookahead scheduler (a timer that queues the next ~200 ms of
  *    notes on the audio clock) keeps the beat sample-accurate however badly the
  *    main thread is doing. Track changes land on the next downbeat; stingers land
  *    on the next sixteenth, so a node detonation is in time *and* in key.
@@ -163,7 +163,14 @@ const MOODS: Record<Mood, MoodMix> = {
 /** Intensity rank, so the score knows when a change is an escalation. */
 const HEAT: Record<Mood, number> = { silent: 0, dossier: 1, paused: 1, title: 1, travel: 2, finale: 2, combat: 3, boss: 4 };
 
-const LOOKAHEAD = 0.12;
+/*
+ * How far ahead notes are queued on the audio clock. The timer that fills the
+ * queue lives on the main thread, so a stall longer than this empties it and the
+ * score drops out. 0.2 s rides out a GC pause or a late shader compile; it costs
+ * nothing in responsiveness, because mood changes move the layer gains
+ * immediately — only which notes get created lags.
+ */
+const LOOKAHEAD = 0.2;
 const TICK_MS = 25;
 
 const hz = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
@@ -351,7 +358,7 @@ export class Music {
    * 0→1, peaking on each kick that has actually sounded and decaying over a
    * sixteenth or so. Kicks are scheduled ahead of time, so this reads the
    * audio clock rather than the scheduler — the floor flashes when you hear the
-   * drum, not 120 ms before it.
+   * drum, not 200 ms before it.
    */
   pulse(): number {
     if (!this.enabled) return 0;

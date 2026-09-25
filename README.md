@@ -164,7 +164,7 @@ scripts/smoke.mjs        Behavioural regression checks in headless Chromium
   chimes climb the chord that is playing. Zero bytes of audio download.
 - **The world moves with the music.** The floor grid pulses on every kick the
   visitor actually hears — read off the audio clock, not the scheduler, which
-  runs 120 ms ahead.
+  runs 200 ms ahead.
 - **Juice with restraint.** Kills freeze time for a few hundredths of a second;
   a node detonation slows it for a quarter-second while a refraction ring tears
   across the screen. The camera is deliberately *not* dilated, so its shake
