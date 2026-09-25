@@ -214,10 +214,10 @@ a sector's `cards` block. The brief picks it up automatically.
 
 ## Deploy
 
-> **Current state:** v3 is merged to `main`. Vercel redeploys automatically; **GitHub Pages does
-> not** — run `npm run deploy` or the mirror below keeps serving the previous version from an
-> indexed URL. `handoff.json` tracks what is outstanding.
-ing
+> **Current state:** v3.1 — the adaptive score and the juice pass — is merged to `main`. Vercel
+> redeploys automatically; **GitHub Pages does not** — run `npm run deploy` after every merge or
+> the mirror below keeps serving the previous version from an indexed URL. `handoff.json` tracks
+> what is outstanding.
 
 `base` is `'./'`, so the build works from any path.
 
